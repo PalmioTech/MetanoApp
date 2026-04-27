@@ -35,8 +35,7 @@ function HomePage() {
 
   const handlePlan = async (req: PlanRequest) => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    const res = mockPlan(req);
+    const res = await mockPlan(req);
     setResult(res);
     setLoading(false);
     setFormCollapsed(true);
