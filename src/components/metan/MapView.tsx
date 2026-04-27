@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import { useEffect, useMemo, useState } from "react";
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
@@ -22,9 +22,9 @@ const greenIcon = (number: number, highlighted = false) =>
 const grayIcon = L.divIcon({
   className: "metan-marker",
   html: `<div style="
-    width:22px;height:22px;border-radius:50%;background:#9ca3af;
+    width:18px;height:18px;border-radius:50%;background:#9ca3af;
     border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.2);
-    transform:translate(-50%,-50%);opacity:.75;
+    transform:translate(-50%,-50%);opacity:.8;
   "></div>`,
   iconSize: [0, 0],
 });
@@ -43,10 +43,22 @@ const pinIcon = (color: string) =>
 function FitBounds({ result }: { result: PlanResult | null }) {
   const map = useMap();
   useEffect(() => {
-    if (!result) return;
+    if (!result || result.route.polyline.length === 0) return;
     const bounds = L.latLngBounds(result.route.polyline);
     map.fitBounds(bounds, { padding: [80, 80], maxZoom: 11 });
   }, [result, map]);
+  return null;
+}
+
+function ViewportTracker({ onChange }: { onChange: (b: L.LatLngBounds, zoom: number) => void }) {
+  const map = useMapEvents({
+    moveend: () => onChange(map.getBounds(), map.getZoom()),
+    zoomend: () => onChange(map.getBounds(), map.getZoom()),
+  });
+  useEffect(() => {
+    onChange(map.getBounds(), map.getZoom());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return null;
 }
 
@@ -57,13 +69,32 @@ interface MapViewProps {
 }
 
 export function MapView({ result, highlightedStopNumber, onStationClick }: MapViewProps) {
-  const recommendedIds = new Set(result?.stops.map((s) => s.station.id) ?? []);
-  const otherStations = ALL_STATIONS.filter((s) => !recommendedIds.has(s.id));
+  const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+  const [zoom, setZoom] = useState<number>(7);
+
+  const recommendedIds = useMemo(
+    () => new Set(result?.stops.map((s) => s.station.id) ?? []),
+    [result],
+  );
+
+  // Render gray markers only when zoomed in enough AND only those inside current viewport
+  const visibleStations = useMemo(() => {
+    if (!bounds || zoom < 9) return [];
+    const out: Station[] = [];
+    for (const s of ALL_STATIONS) {
+      if (recommendedIds.has(s.id)) continue;
+      if (bounds.contains([s.lat, s.lng])) {
+        out.push(s);
+        if (out.length >= 400) break;
+      }
+    }
+    return out;
+  }, [bounds, zoom, recommendedIds]);
 
   return (
     <MapContainer
-      center={[44.95, 10.5]}
-      zoom={7}
+      center={[42.5, 12.5]}
+      zoom={6}
       className="h-screen w-screen"
       zoomControl={false}
     >
@@ -72,7 +103,9 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {result && (
+      <ViewportTracker onChange={(b, z) => { setBounds(b); setZoom(z); }} />
+
+      {result && result.route.polyline.length > 0 && (
         <>
           <Polyline
             positions={result.route.polyline}
@@ -89,7 +122,7 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
         </>
       )}
 
-      {otherStations.map((s) => (
+      {visibleStations.map((s) => (
         <Marker
           key={s.id}
           position={[s.lat, s.lng]}
