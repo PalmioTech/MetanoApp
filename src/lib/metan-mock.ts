@@ -213,7 +213,42 @@ function pickStops(
 
 const AVG_SPEED_KMH = 95; // highway-ish
 
-export function mockPlan(req: PlanRequest): PlanResult {
+async function fetchOsrmRoute(
+  points: [number, number][],
+): Promise<{ polyline: [number, number][]; distanceKm: number; durationMin: number } | null> {
+  try {
+    const coords = points.map(([lat, lng]) => `${lng},${lat}`).join(";");
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const route = data?.routes?.[0];
+    if (!route) return null;
+    const coordsArr: [number, number][] = route.geometry.coordinates.map(
+      ([lng, lat]: [number, number]) => [lat, lng],
+    );
+    return {
+      polyline: coordsArr,
+      distanceKm: route.distance / 1000,
+      durationMin: route.duration / 60,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function cumulativeDistances(polyline: [number, number][]): number[] {
+  const cum: number[] = [0];
+  for (let i = 1; i < polyline.length; i++) {
+    cum.push(cum[i - 1] + haversine(polyline[i - 1], polyline[i]));
+  }
+  return cum;
+}
+
+export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const points: [number, number][] = [];
   const cities = [req.origin, ...req.waypoints.filter(Boolean), req.destination];
   const missing: string[] = [];
@@ -227,6 +262,7 @@ export function mockPlan(req: PlanRequest): PlanResult {
     return {
       route: { distance_km: 0, duration_min: 0, polyline: [] },
       stops: [],
+      candidates: [],
       warnings: [
         missing.length
           ? `Città non riconosciuta: ${missing.join(", ")}.`
@@ -240,18 +276,37 @@ export function mockPlan(req: PlanRequest): PlanResult {
     };
   }
 
-  const { polyline, cumulative, totalKm } = buildRoute(points);
-  const totalKmRounded = Math.round(totalKm);
-  const durationMin = Math.round((totalKm / AVG_SPEED_KMH) * 60);
+  // Try OSRM first for a real driving route
+  const warnings: string[] = [];
+  let polyline: [number, number][];
+  let cumulative: number[];
+  let totalKm: number;
+  let durationMin: number;
 
-  const candidates = candidatesAlongRoute(polyline, cumulative);
-  const { picked, warnings } = pickStops(
-    candidates,
+  const osrm = await fetchOsrmRoute(points);
+  if (osrm && osrm.polyline.length > 1) {
+    polyline = osrm.polyline;
+    cumulative = cumulativeDistances(polyline);
+    totalKm = osrm.distanceKm;
+    durationMin = Math.round(osrm.durationMin);
+  } else {
+    const built = buildRoute(points);
+    polyline = built.polyline;
+    cumulative = built.cumulative;
+    totalKm = built.totalKm;
+    durationMin = Math.round((totalKm / AVG_SPEED_KMH) * 60);
+    warnings.push("Routing stradale non disponibile: percorso approssimato in linea retta.");
+  }
+
+  const candidatesAll = candidatesAlongRoute(polyline, cumulative);
+  const { picked, warnings: pickWarnings } = pickStops(
+    candidatesAll,
     totalKm,
     req.current_range_km,
     req.max_range_km,
     req.safety_margin_km,
   );
+  warnings.push(...pickWarnings);
 
   const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
@@ -277,9 +332,15 @@ export function mockPlan(req: PlanRequest): PlanResult {
 
   if (missing.length) warnings.unshift(`Città non riconosciuta: ${missing.join(", ")}.`);
 
+  const pickedIds = new Set(picked.map((p) => p.station.id));
+  const candidates: CandidateStation[] = candidatesAll
+    .filter((c) => !pickedIds.has(c.station.id))
+    .map((c) => ({ station: c.station, detour_km: c.detourKm, cum_km: c.cumKm }));
+
   return {
-    route: { distance_km: totalKmRounded, duration_min: durationMin, polyline },
+    route: { distance_km: Math.round(totalKm), duration_min: durationMin, polyline },
     stops,
+    candidates,
     warnings,
     meta: {
       current_range_km: req.current_range_km,
@@ -288,3 +349,4 @@ export function mockPlan(req: PlanRequest): PlanResult {
     },
   };
 }
+
