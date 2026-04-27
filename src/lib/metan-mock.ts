@@ -1,4 +1,4 @@
-import type { PlanRequest, PlanResult, Station } from "./metan-types";
+import type { PlanRequest, PlanResult, Station, CandidateStation } from "./metan-types";
 import { isStationOpenAt } from "./metan-types";
 import rawStations from "./metan-stations.json";
 

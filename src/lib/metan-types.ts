@@ -30,9 +30,16 @@ export type Stop = {
   detour_km: number;
 };
 
+export type CandidateStation = {
+  station: Station;
+  detour_km: number;
+  cum_km: number;
+};
+
 export type PlanResult = {
   route: { distance_km: number; duration_min: number; polyline: [number, number][] };
   stops: Stop[];
+  candidates: CandidateStation[];
   warnings: string[];
   meta: { current_range_km: number; remaining_range_km: number; safety_margin_km: number };
 };
