@@ -77,8 +77,12 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
     [result],
   );
 
-  // Render gray markers only when zoomed in enough AND only those inside current viewport
+  // When a route is planned, always show the route's candidate stations (already filtered to detour ≤ 8km).
+  // Without a route, show stations only when zoomed in to avoid 1604 markers.
   const visibleStations = useMemo(() => {
+    if (result && result.candidates.length > 0) {
+      return result.candidates.map((c) => c.station);
+    }
     if (!bounds || zoom < 9) return [];
     const out: Station[] = [];
     for (const s of ALL_STATIONS) {
@@ -89,7 +93,7 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
       }
     }
     return out;
-  }, [bounds, zoom, recommendedIds]);
+  }, [bounds, zoom, recommendedIds, result]);
 
   return (
     <MapContainer
