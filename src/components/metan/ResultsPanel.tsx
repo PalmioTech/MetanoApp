@@ -203,6 +203,8 @@ function StopCard({
                       key={alt.station.id}
                       alt={alt}
                       onSwap={() => onSwap(alt.station.id)}
+                      onHover={() => onAlternativeHover(alt.station.id)}
+                      onLeave={() => onAlternativeHover(null)}
                     />
                   ))}
                 </div>
