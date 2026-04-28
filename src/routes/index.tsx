@@ -166,6 +166,7 @@ function HomePage() {
                 onAddStation={handleAddStation}
                 onSwapStation={handleSwapStation}
                 onRemoveStation={handleRemoveStation}
+                onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
               />
             )}
