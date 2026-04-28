@@ -21,6 +21,12 @@ export type Station = {
   payment_methods?: string[];
 };
 
+export type StopAlternative = {
+  station: Station;
+  detour_km: number;
+  is_open_at_eta: boolean | null;
+};
+
 export type Stop = {
   stop_number: number;
   station: Station;
@@ -28,6 +34,8 @@ export type Stop = {
   eta_label: string;
   eta_iso: string;
   detour_km: number;
+  alternatives: StopAlternative[];
+  is_user_added?: boolean;
 };
 
 export type CandidateStation = {
