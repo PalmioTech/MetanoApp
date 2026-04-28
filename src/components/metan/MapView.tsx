@@ -88,6 +88,7 @@ interface MapViewProps {
 export function MapView({ result, highlightedStopNumber, onStationClick }: MapViewProps) {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState<number>(7);
+  const [hoveredStationId, setHoveredStationId] = useState<number | null>(null);
 
   const recommendedIds = useMemo(
     () => new Set(result?.stops.map((s) => s.station.id) ?? []),
