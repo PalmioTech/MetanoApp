@@ -154,6 +154,9 @@ function HomePage() {
                 highlightedStopNumber={highlighted}
                 onHighlight={setHighlighted}
                 onEdit={handleEdit}
+                onAddStation={handleAddStation}
+                onSwapStation={handleSwapStation}
+                forcedStationIds={forcedStationIds}
               />
             )}
           </div>
