@@ -34,6 +34,7 @@ function HomePage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
+  const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
 
   const runPlan = async (req: PlanRequest) => {
     setLoading(true);
