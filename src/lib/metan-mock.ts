@@ -169,6 +169,7 @@ function pickStops(
   currentRange: number,
   maxRange: number,
   safety: number,
+  forcedIds: Set<number> = new Set(),
 ): { picked: Candidate[]; warnings: string[] } {
   const usable = (range: number) => Math.max(0, range - safety);
   const picked: Candidate[] = [];
@@ -177,21 +178,48 @@ function pickStops(
   let range = currentRange;
   let lastIdx = -1;
 
-  while (pos + usable(range) < totalKm) {
-    // Pick the furthest candidate within reach (ahead of pos), preferring lowest price as tiebreaker among "good" options
+  // Build sorted list of forced candidates by cumKm
+  const forced = candidates
+    .map((c, i) => ({ c, i }))
+    .filter((x) => forcedIds.has(x.c.station.id))
+    .sort((a, b) => a.c.cumKm - b.c.cumKm);
+  let forcedPtr = 0;
+
+  while (pos + usable(range) < totalKm || forcedPtr < forced.length) {
+    // If next forced stop is within reach OR we still need to insert it, prioritize it.
+    const nextForced = forced[forcedPtr];
+
+    // If forced stop is reachable from current pos, take it directly.
+    if (nextForced && nextForced.c.cumKm > pos + 0.1 && nextForced.c.cumKm - pos <= usable(range)) {
+      picked.push(nextForced.c);
+      pos = nextForced.c.cumKm;
+      range = maxRange;
+      lastIdx = nextForced.i;
+      forcedPtr++;
+      continue;
+    }
+
+    // If forced stop exists but is OUT of reach, we still need a refuel before it.
+    const upperLimitCum = nextForced ? Math.min(totalKm, nextForced.c.cumKm) : totalKm;
+
     let bestIdx = -1;
     let bestCum = -1;
     for (let i = lastIdx + 1; i < candidates.length; i++) {
       const c = candidates[i];
       if (c.cumKm <= pos + 0.1) continue;
+      if (c.cumKm > upperLimitCum) break;
       const reach = c.cumKm - pos;
       if (reach > usable(range)) break;
       if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
     }
+
+    // No more refuel needed and no pending forced stop -> done.
+    if (bestIdx === -1 && !nextForced) break;
     if (bestIdx === -1) {
-      warnings.push("Autonomia insufficiente per raggiungere la prossima stazione lungo il percorso.");
+      warnings.push("Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso.");
       break;
     }
+
     // Among candidates near bestCum (within last 25 km of reach), prefer cheapest
     const minCum = bestCum - 25;
     let chosen = bestIdx;
@@ -206,6 +234,11 @@ function pickStops(
     pos = candidates[chosen].cumKm;
     range = maxRange;
     lastIdx = chosen;
+
+    // If the chosen one happened to be the forced one, advance the pointer.
+    if (nextForced && candidates[chosen].station.id === nextForced.c.station.id) {
+      forcedPtr++;
+    }
   }
 
   return { picked, warnings };
