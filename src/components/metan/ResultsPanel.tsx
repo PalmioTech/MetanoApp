@@ -78,6 +78,7 @@ function StopCard({
   onAdd,
   onRemove,
   onSwap,
+  onAlternativeHover,
   isAdded,
 }: {
   stop: Stop;
@@ -87,6 +88,7 @@ function StopCard({
   onAdd: () => void;
   onRemove: () => void;
   onSwap: (newId: number) => void;
+  onAlternativeHover: (stationId: number | null) => void;
   isAdded: boolean;
 }) {
   const [showAlts, setShowAlts] = useState(false);
