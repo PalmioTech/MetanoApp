@@ -10,6 +10,7 @@ interface ResultsPanelProps {
   onHighlight: (n: number | null) => void;
   onEdit: () => void;
   onAddStation: (stationId: number) => void;
+  onRemoveStation: (stationId: number) => void;
   onSwapStation: (oldStationId: number, newStationId: number) => void;
   forcedStationIds: number[];
 }
