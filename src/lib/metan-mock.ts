@@ -281,15 +281,36 @@ function cumulativeDistances(polyline: [number, number][]): number[] {
   return cum;
 }
 
+function resolveWaypoint(w: string | Waypoint): { point: [number, number] | null; label: string } {
+  if (typeof w === "string") {
+    const g = geocodeCity(w);
+    return { point: g ? [g.lat, g.lng] : null, label: w };
+  }
+  if (typeof w.lat === "number" && typeof w.lng === "number") {
+    return { point: [w.lat, w.lng], label: w.label };
+  }
+  const g = geocodeCity(w.label);
+  return { point: g ? [g.lat, g.lng] : null, label: w.label };
+}
+
 export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const points: [number, number][] = [];
-  const cities = [req.origin, ...req.waypoints.filter(Boolean), req.destination];
   const missing: string[] = [];
-  for (const c of cities) {
-    const g = geocodeCity(c);
-    if (!g) missing.push(c);
-    else points.push([g.lat, g.lng]);
+
+  const originG = geocodeCity(req.origin);
+  if (!originG) missing.push(req.origin);
+  else points.push([originG.lat, originG.lng]);
+
+  for (const w of req.waypoints) {
+    if (!w) continue;
+    const { point, label } = resolveWaypoint(w);
+    if (!point) missing.push(label);
+    else points.push(point);
   }
+
+  const destG = geocodeCity(req.destination);
+  if (!destG) missing.push(req.destination);
+  else points.push([destG.lat, destG.lng]);
 
   if (points.length < 2) {
     return {
@@ -332,21 +353,47 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
 
   const candidatesAll = candidatesAlongRoute(polyline, cumulative);
+
+  // Forced station IDs come either from explicit list or from waypoints with forced_station_id
+  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
+  for (const w of req.waypoints) {
+    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
+      forcedSet.add(w.forced_station_id);
+    }
+  }
+
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
     totalKm,
     req.current_range_km,
     req.max_range_km,
     req.safety_margin_km,
+    forcedSet,
   );
   warnings.push(...pickWarnings);
 
   const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
+  // Build alternatives for each picked stop: 3 nearest candidates by cumKm (excluding picked itself & other picked stops)
+  const pickedIds = new Set(picked.map((p) => p.station.id));
+
   const stops = picked.map((c, i) => {
     const minutes = Math.round((c.cumKm / totalKm) * durationMin);
     const eta = new Date(startTime.getTime() + minutes * 60_000);
     const etaStr = eta.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+    // Alternatives: candidates near same cumKm (within ±40 km), not already picked, by proximity in cumKm
+    const alts: StopAlternative[] = candidatesAll
+      .filter((cand) => !pickedIds.has(cand.station.id))
+      .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
+      .sort((a, b) => Math.abs(a.cumKm - c.cumKm) - Math.abs(b.cumKm - c.cumKm))
+      .slice(0, 3)
+      .map((cand) => ({
+        station: cand.station,
+        detour_km: cand.detourKm,
+        is_open_at_eta: isStationOpenAt(cand.station, eta),
+      }));
+
     return {
       stop_number: i + 1,
       station: c.station,
@@ -354,6 +401,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       eta_label: `Arrivo stimato: ${etaStr}`,
       eta_iso: eta.toISOString(),
       detour_km: c.detourKm,
+      alternatives: alts,
+      is_user_added: forcedSet.has(c.station.id),
     };
   });
 
@@ -365,7 +414,6 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   if (missing.length) warnings.unshift(`Città non riconosciuta: ${missing.join(", ")}.`);
 
-  const pickedIds = new Set(picked.map((p) => p.station.id));
   const candidates: CandidateStation[] = candidatesAll
     .filter((c) => !pickedIds.has(c.station.id))
     .map((c) => ({ station: c.station, detour_km: c.detourKm, cum_km: c.cumKm }));
@@ -382,4 +430,5 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     },
   };
 }
+
 
