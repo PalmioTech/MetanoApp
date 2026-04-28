@@ -225,6 +225,7 @@ export function ResultsPanel({
   onAddStation,
   onSwapStation,
   onRemoveStation,
+  onAlternativeHover,
   forcedStationIds,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
