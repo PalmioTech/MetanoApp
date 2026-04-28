@@ -32,12 +32,21 @@ function HomePage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [formCollapsed, setFormCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
+  const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
 
-  const handlePlan = async (req: PlanRequest) => {
+  const runPlan = async (req: PlanRequest) => {
     setLoading(true);
     const res = await mockPlan(req);
     setResult(res);
+    setLastReq(req);
     setLoading(false);
+  };
+
+  const handlePlan = async (req: PlanRequest) => {
+    // Fresh plan from form -> reset forced stops
+    setForcedStationIds([]);
+    await runPlan({ ...req, forced_station_ids: [] });
     setFormCollapsed(true);
     setDrawerOpen(true);
   };
@@ -45,6 +54,23 @@ function HomePage() {
   const handleEdit = () => {
     setFormCollapsed(false);
     setResult(null);
+    setForcedStationIds([]);
+    setLastReq(null);
+  };
+
+  const handleAddStation = async (stationId: number) => {
+    if (!lastReq) return;
+    if (forcedStationIds.includes(stationId)) return;
+    const next = [...forcedStationIds, stationId];
+    setForcedStationIds(next);
+    await runPlan({ ...lastReq, forced_station_ids: next });
+  };
+
+  const handleSwapStation = async (oldId: number, newId: number) => {
+    if (!lastReq) return;
+    const next = forcedStationIds.filter((id) => id !== oldId).concat(newId);
+    setForcedStationIds(next);
+    await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
   return (
