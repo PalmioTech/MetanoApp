@@ -87,6 +87,7 @@ function HomePage() {
         <MapView
           result={result}
           highlightedStopNumber={highlighted}
+          externalHoveredStationId={hoveredAltId}
           onStationClick={setSelectedStation}
         />
       </Suspense>
