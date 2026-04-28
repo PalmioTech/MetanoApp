@@ -12,6 +12,7 @@ interface ResultsPanelProps {
   onAddStation: (stationId: number) => void;
   onRemoveStation: (stationId: number) => void;
   onSwapStation: (oldStationId: number, newStationId: number) => void;
+  onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
 }
 
