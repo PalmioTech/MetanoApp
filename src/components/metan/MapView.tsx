@@ -82,13 +82,16 @@ function ViewportTracker({ onChange }: { onChange: (b: L.LatLngBounds, zoom: num
 interface MapViewProps {
   result: PlanResult | null;
   highlightedStopNumber: number | null;
+  externalHoveredStationId?: number | null;
   onStationClick: (s: Station) => void;
 }
 
-export function MapView({ result, highlightedStopNumber, onStationClick }: MapViewProps) {
+export function MapView({ result, highlightedStopNumber, externalHoveredStationId, onStationClick }: MapViewProps) {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState<number>(7);
-  const [hoveredStationId, setHoveredStationId] = useState<number | null>(null);
+  const [internalHoveredId, setInternalHoveredId] = useState<number | null>(null);
+  const hoveredStationId = externalHoveredStationId ?? internalHoveredId;
+  const setHoveredStationId = setInternalHoveredId;
 
   const recommendedIds = useMemo(
     () => new Set(result?.stops.map((s) => s.station.id) ?? []),
