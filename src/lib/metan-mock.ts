@@ -301,16 +301,46 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   if (!originG) missing.push(req.origin);
   else points.push([originG.lat, originG.lng]);
 
+  // Insert string/coord waypoints from the form first
+  const formWaypoints: [number, number][] = [];
   for (const w of req.waypoints) {
     if (!w) continue;
     const { point, label } = resolveWaypoint(w);
     if (!point) missing.push(label);
-    else points.push(point);
+    else formWaypoints.push(point);
   }
+  points.push(...formWaypoints);
 
   const destG = geocodeCity(req.destination);
   if (!destG) missing.push(req.destination);
   else points.push([destG.lat, destG.lng]);
+
+  // Forced station IDs: insert them as routing waypoints in geographic order
+  // between origin and destination so OSRM physically routes through them.
+  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
+  for (const w of req.waypoints) {
+    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
+      forcedSet.add(w.forced_station_id);
+    }
+  }
+
+  if (forcedSet.size > 0 && points.length >= 2) {
+    const origin = points[0];
+    const dest = points[points.length - 1];
+    const totalDirect = haversine(origin, dest) || 1;
+    const forcedStations = ALL_STATIONS.filter((s) => forcedSet.has(s.id));
+    // Order forced stations by progress along origin->dest direction
+    const ordered = forcedStations
+      .map((s) => ({
+        s,
+        t: haversine(origin, [s.lat, s.lng]) / (haversine(origin, [s.lat, s.lng]) + haversine([s.lat, s.lng], dest) || 1),
+        progress: haversine(origin, [s.lat, s.lng]) / totalDirect,
+      }))
+      .sort((a, b) => a.progress - b.progress);
+    // Insert before destination
+    const insertPos = points.length - 1;
+    points.splice(insertPos, 0, ...ordered.map((x) => [x.s.lat, x.s.lng] as [number, number]));
+  }
 
   if (points.length < 2) {
     return {
