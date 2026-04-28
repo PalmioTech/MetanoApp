@@ -148,22 +148,22 @@ function StopCard({
             </a>
             <button
               type="button"
-              disabled={isAdded}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isAdded) onAdd();
+                if (isAdded) onRemove();
+                else onAdd();
               }}
               className={cn(
                 "flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg transition",
                 isAdded
-                  ? "bg-success/15 text-success-foreground border border-success/40 cursor-default"
+                  ? "bg-destructive/10 text-destructive border border-destructive/40 hover:bg-destructive/20"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"
               )}
             >
               {isAdded ? (
                 <>
-                  <Check className="h-3.5 w-3.5" />
-                  Tappa aggiunta
+                  <X className="h-3.5 w-3.5" />
+                  Rimuovi tappa
                 </>
               ) : (
                 <>
