@@ -278,6 +278,7 @@ export function ResultsPanel({
             onHover={() => onHighlight(stop.stop_number)}
             onLeave={() => onHighlight(null)}
             onAdd={() => onAddStation(stop.station.id)}
+            onRemove={() => onRemoveStation(stop.station.id)}
             onSwap={(newId) => onSwapStation(stop.station.id, newId)}
             isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
           />
