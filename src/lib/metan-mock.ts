@@ -170,6 +170,8 @@ function pickStops(
   maxRange: number,
   safety: number,
   forcedIds: Set<number> = new Set(),
+  startTime: Date = new Date(),
+  durationMin: number = 0,
 ): { picked: Candidate[]; warnings: string[] } {
   const usable = (range: number) => Math.max(0, range - safety);
   const picked: Candidate[] = [];
@@ -177,6 +179,11 @@ function pickStops(
   let pos = 0;
   let range = currentRange;
   let lastIdx = -1;
+
+  const etaAt = (cumKm: number) => {
+    const minutes = totalKm > 0 ? Math.round((cumKm / totalKm) * durationMin) : 0;
+    return new Date(startTime.getTime() + minutes * 60_000);
+  };
 
   // Build sorted list of forced candidates by cumKm
   const forced = candidates
@@ -186,10 +193,8 @@ function pickStops(
   let forcedPtr = 0;
 
   while (pos + usable(range) < totalKm || forcedPtr < forced.length) {
-    // If next forced stop is within reach OR we still need to insert it, prioritize it.
     const nextForced = forced[forcedPtr];
 
-    // If forced stop is reachable from current pos, take it directly.
     if (nextForced && nextForced.c.cumKm > pos + 0.1 && nextForced.c.cumKm - pos <= usable(range)) {
       picked.push(nextForced.c);
       pos = nextForced.c.cumKm;
@@ -199,7 +204,6 @@ function pickStops(
       continue;
     }
 
-    // If forced stop exists but is OUT of reach, we still need a refuel before it.
     const upperLimitCum = nextForced ? Math.min(totalKm, nextForced.c.cumKm) : totalKm;
 
     let bestIdx = -1;
@@ -213,29 +217,34 @@ function pickStops(
       if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
     }
 
-    // No more refuel needed and no pending forced stop -> done.
     if (bestIdx === -1 && !nextForced) break;
     if (bestIdx === -1) {
       warnings.push("Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso.");
       break;
     }
 
-    // Among candidates near bestCum (within last 25 km of reach), prefer cheapest
+    // Among reachable candidates in the last 25 km of reach, prefer OPEN first, then cheapest.
     const minCum = bestCum - 25;
-    let chosen = bestIdx;
-    let bestPrice = candidates[bestIdx].station.price ?? Infinity;
+    let chosen = -1;
+    let chosenScore: [number, number] = [2, Infinity]; // [closedRank (0=open,1=unknown,2=closed), price]
     for (let i = lastIdx + 1; i <= bestIdx; i++) {
       const c = candidates[i];
       if (c.cumKm < minCum) continue;
-      const p = c.station.price ?? Infinity;
-      if (p < bestPrice) { bestPrice = p; chosen = i; }
+      const open = isStationOpenAt(c.station, etaAt(c.cumKm));
+      const openRank = open === true ? 0 : open === null ? 1 : 2;
+      const price = c.station.price ?? Infinity;
+      if (openRank < chosenScore[0] || (openRank === chosenScore[0] && price < chosenScore[1])) {
+        chosen = i;
+        chosenScore = [openRank, price];
+      }
     }
+    if (chosen === -1) chosen = bestIdx;
+
     picked.push(candidates[chosen]);
     pos = candidates[chosen].cumKm;
     range = maxRange;
     lastIdx = chosen;
 
-    // If the chosen one happened to be the forced one, advance the pointer.
     if (nextForced && candidates[chosen].station.id === nextForced.c.station.id) {
       forcedPtr++;
     }
