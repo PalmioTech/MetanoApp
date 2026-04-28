@@ -163,6 +163,7 @@ function HomePage() {
                 onEdit={handleEdit}
                 onAddStation={handleAddStation}
                 onSwapStation={handleSwapStation}
+                onRemoveStation={handleRemoveStation}
                 forcedStationIds={forcedStationIds}
               />
             )}
