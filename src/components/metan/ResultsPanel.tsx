@@ -35,15 +35,21 @@ function borderColor(open: boolean | null) {
 function AlternativeRow({
   alt,
   onSwap,
+  onHover,
+  onLeave,
 }: {
   alt: StopAlternative;
   onSwap: () => void;
+  onHover: () => void;
+  onLeave: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onSwap}
-      className="w-full text-left px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary transition flex items-center gap-2"
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      className="w-full text-left px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/60 hover:shadow-sm transition flex items-center gap-2"
     >
       <Repeat className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
