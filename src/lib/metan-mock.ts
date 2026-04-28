@@ -384,13 +384,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   const candidatesAll = candidatesAlongRoute(polyline, cumulative);
 
-  // Forced station IDs come either from explicit list or from waypoints with forced_station_id
-  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
-  for (const w of req.waypoints) {
-    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
-      forcedSet.add(w.forced_station_id);
-    }
-  }
+  // forcedSet was already computed above (used for routing waypoints)
 
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
