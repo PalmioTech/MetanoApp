@@ -395,6 +395,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   // forcedSet was already computed above (used for routing waypoints)
 
+  const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
+
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
     totalKm,
@@ -402,12 +404,12 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     req.max_range_km,
     req.safety_margin_km,
     forcedSet,
+    startTime,
+    durationMin,
   );
   warnings.push(...pickWarnings);
 
-  const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
-
-  // Build alternatives for each picked stop: 3 nearest candidates by cumKm (excluding picked itself & other picked stops)
+  // Build alternatives for each picked stop: candidates near same cumKm (within ±40 km), not already picked
   const pickedIds = new Set(picked.map((p) => p.station.id));
 
   const stops = picked.map((c, i) => {
