@@ -21,6 +21,12 @@ export type Station = {
   payment_methods?: string[];
 };
 
+export type StopAlternative = {
+  station: Station;
+  detour_km: number;
+  is_open_at_eta: boolean | null;
+};
+
 export type Stop = {
   stop_number: number;
   station: Station;
@@ -28,6 +34,8 @@ export type Stop = {
   eta_label: string;
   eta_iso: string;
   detour_km: number;
+  alternatives: StopAlternative[];
+  is_user_added?: boolean;
 };
 
 export type CandidateStation = {
@@ -44,14 +52,22 @@ export type PlanResult = {
   meta: { current_range_km: number; remaining_range_km: number; safety_margin_km: number };
 };
 
+export type Waypoint = {
+  label: string;             // displayed text (city name or station name)
+  lat?: number;              // optional explicit coords (forced stop)
+  lng?: number;
+  forced_station_id?: number;
+};
+
 export type PlanRequest = {
   origin: string;
   destination: string;
-  waypoints: string[];
+  waypoints: (string | Waypoint)[];
   current_range_km: number;
   max_range_km: number;
   safety_margin_km: number;
   depart_at?: string | null;
+  forced_station_ids?: number[]; // stations that MUST be in the stop list
 };
 
 export const DAY_ORDER: DayKey[] = [

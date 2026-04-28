@@ -1,4 +1,4 @@
-import type { PlanRequest, PlanResult, Station, CandidateStation } from "./metan-types";
+import type { PlanRequest, PlanResult, Station, CandidateStation, StopAlternative, Waypoint } from "./metan-types";
 import { isStationOpenAt } from "./metan-types";
 import rawStations from "./metan-stations.json";
 
@@ -169,6 +169,7 @@ function pickStops(
   currentRange: number,
   maxRange: number,
   safety: number,
+  forcedIds: Set<number> = new Set(),
 ): { picked: Candidate[]; warnings: string[] } {
   const usable = (range: number) => Math.max(0, range - safety);
   const picked: Candidate[] = [];
@@ -177,21 +178,48 @@ function pickStops(
   let range = currentRange;
   let lastIdx = -1;
 
-  while (pos + usable(range) < totalKm) {
-    // Pick the furthest candidate within reach (ahead of pos), preferring lowest price as tiebreaker among "good" options
+  // Build sorted list of forced candidates by cumKm
+  const forced = candidates
+    .map((c, i) => ({ c, i }))
+    .filter((x) => forcedIds.has(x.c.station.id))
+    .sort((a, b) => a.c.cumKm - b.c.cumKm);
+  let forcedPtr = 0;
+
+  while (pos + usable(range) < totalKm || forcedPtr < forced.length) {
+    // If next forced stop is within reach OR we still need to insert it, prioritize it.
+    const nextForced = forced[forcedPtr];
+
+    // If forced stop is reachable from current pos, take it directly.
+    if (nextForced && nextForced.c.cumKm > pos + 0.1 && nextForced.c.cumKm - pos <= usable(range)) {
+      picked.push(nextForced.c);
+      pos = nextForced.c.cumKm;
+      range = maxRange;
+      lastIdx = nextForced.i;
+      forcedPtr++;
+      continue;
+    }
+
+    // If forced stop exists but is OUT of reach, we still need a refuel before it.
+    const upperLimitCum = nextForced ? Math.min(totalKm, nextForced.c.cumKm) : totalKm;
+
     let bestIdx = -1;
     let bestCum = -1;
     for (let i = lastIdx + 1; i < candidates.length; i++) {
       const c = candidates[i];
       if (c.cumKm <= pos + 0.1) continue;
+      if (c.cumKm > upperLimitCum) break;
       const reach = c.cumKm - pos;
       if (reach > usable(range)) break;
       if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
     }
+
+    // No more refuel needed and no pending forced stop -> done.
+    if (bestIdx === -1 && !nextForced) break;
     if (bestIdx === -1) {
-      warnings.push("Autonomia insufficiente per raggiungere la prossima stazione lungo il percorso.");
+      warnings.push("Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso.");
       break;
     }
+
     // Among candidates near bestCum (within last 25 km of reach), prefer cheapest
     const minCum = bestCum - 25;
     let chosen = bestIdx;
@@ -206,6 +234,11 @@ function pickStops(
     pos = candidates[chosen].cumKm;
     range = maxRange;
     lastIdx = chosen;
+
+    // If the chosen one happened to be the forced one, advance the pointer.
+    if (nextForced && candidates[chosen].station.id === nextForced.c.station.id) {
+      forcedPtr++;
+    }
   }
 
   return { picked, warnings };
@@ -248,15 +281,36 @@ function cumulativeDistances(polyline: [number, number][]): number[] {
   return cum;
 }
 
+function resolveWaypoint(w: string | Waypoint): { point: [number, number] | null; label: string } {
+  if (typeof w === "string") {
+    const g = geocodeCity(w);
+    return { point: g ? [g.lat, g.lng] : null, label: w };
+  }
+  if (typeof w.lat === "number" && typeof w.lng === "number") {
+    return { point: [w.lat, w.lng], label: w.label };
+  }
+  const g = geocodeCity(w.label);
+  return { point: g ? [g.lat, g.lng] : null, label: w.label };
+}
+
 export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const points: [number, number][] = [];
-  const cities = [req.origin, ...req.waypoints.filter(Boolean), req.destination];
   const missing: string[] = [];
-  for (const c of cities) {
-    const g = geocodeCity(c);
-    if (!g) missing.push(c);
-    else points.push([g.lat, g.lng]);
+
+  const originG = geocodeCity(req.origin);
+  if (!originG) missing.push(req.origin);
+  else points.push([originG.lat, originG.lng]);
+
+  for (const w of req.waypoints) {
+    if (!w) continue;
+    const { point, label } = resolveWaypoint(w);
+    if (!point) missing.push(label);
+    else points.push(point);
   }
+
+  const destG = geocodeCity(req.destination);
+  if (!destG) missing.push(req.destination);
+  else points.push([destG.lat, destG.lng]);
 
   if (points.length < 2) {
     return {
@@ -299,21 +353,47 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
 
   const candidatesAll = candidatesAlongRoute(polyline, cumulative);
+
+  // Forced station IDs come either from explicit list or from waypoints with forced_station_id
+  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
+  for (const w of req.waypoints) {
+    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
+      forcedSet.add(w.forced_station_id);
+    }
+  }
+
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
     totalKm,
     req.current_range_km,
     req.max_range_km,
     req.safety_margin_km,
+    forcedSet,
   );
   warnings.push(...pickWarnings);
 
   const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
+  // Build alternatives for each picked stop: 3 nearest candidates by cumKm (excluding picked itself & other picked stops)
+  const pickedIds = new Set(picked.map((p) => p.station.id));
+
   const stops = picked.map((c, i) => {
     const minutes = Math.round((c.cumKm / totalKm) * durationMin);
     const eta = new Date(startTime.getTime() + minutes * 60_000);
     const etaStr = eta.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+    // Alternatives: candidates near same cumKm (within ±40 km), not already picked, by proximity in cumKm
+    const alts: StopAlternative[] = candidatesAll
+      .filter((cand) => !pickedIds.has(cand.station.id))
+      .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
+      .sort((a, b) => Math.abs(a.cumKm - c.cumKm) - Math.abs(b.cumKm - c.cumKm))
+      .slice(0, 3)
+      .map((cand) => ({
+        station: cand.station,
+        detour_km: cand.detourKm,
+        is_open_at_eta: isStationOpenAt(cand.station, eta),
+      }));
+
     return {
       stop_number: i + 1,
       station: c.station,
@@ -321,6 +401,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       eta_label: `Arrivo stimato: ${etaStr}`,
       eta_iso: eta.toISOString(),
       detour_km: c.detourKm,
+      alternatives: alts,
+      is_user_added: forcedSet.has(c.station.id),
     };
   });
 
@@ -332,7 +414,6 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   if (missing.length) warnings.unshift(`Città non riconosciuta: ${missing.join(", ")}.`);
 
-  const pickedIds = new Set(picked.map((p) => p.station.id));
   const candidates: CandidateStation[] = candidatesAll
     .filter((c) => !pickedIds.has(c.station.id))
     .map((c) => ({ station: c.station, detour_km: c.detourKm, cum_km: c.cumKm }));
@@ -349,4 +430,5 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     },
   };
 }
+
 

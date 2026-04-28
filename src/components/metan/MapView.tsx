@@ -78,18 +78,19 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
   );
 
   // When a route is planned, always show the route's candidate stations (already filtered to detour ≤ 8km).
-  // Without a route, show stations only when zoomed in to avoid 1604 markers.
+  // Without a route, show stations within current viewport at any zoom (capped to avoid 1604 markers at once).
   const visibleStations = useMemo(() => {
     if (result && result.candidates.length > 0) {
       return result.candidates.map((c) => c.station);
     }
-    if (!bounds || zoom < 9) return [];
+    if (!bounds) return [];
+    const cap = zoom >= 9 ? 600 : zoom >= 7 ? 250 : 120;
     const out: Station[] = [];
     for (const s of ALL_STATIONS) {
       if (recommendedIds.has(s.id)) continue;
       if (bounds.contains([s.lat, s.lng])) {
         out.push(s);
-        if (out.length >= 400) break;
+        if (out.length >= cap) break;
       }
     }
     return out;
