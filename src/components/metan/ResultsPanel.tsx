@@ -12,6 +12,7 @@ interface ResultsPanelProps {
   onAddStation: (stationId: number) => void;
   onRemoveStation: (stationId: number) => void;
   onSwapStation: (oldStationId: number, newStationId: number) => void;
+  onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
 }
 
@@ -34,15 +35,21 @@ function borderColor(open: boolean | null) {
 function AlternativeRow({
   alt,
   onSwap,
+  onHover,
+  onLeave,
 }: {
   alt: StopAlternative;
   onSwap: () => void;
+  onHover: () => void;
+  onLeave: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onSwap}
-      className="w-full text-left px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary transition flex items-center gap-2"
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      className="w-full text-left px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/60 hover:shadow-sm transition flex items-center gap-2"
     >
       <Repeat className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
@@ -71,6 +78,7 @@ function StopCard({
   onAdd,
   onRemove,
   onSwap,
+  onAlternativeHover,
   isAdded,
 }: {
   stop: Stop;
@@ -80,6 +88,7 @@ function StopCard({
   onAdd: () => void;
   onRemove: () => void;
   onSwap: (newId: number) => void;
+  onAlternativeHover: (stationId: number | null) => void;
   isAdded: boolean;
 }) {
   const [showAlts, setShowAlts] = useState(false);
@@ -194,6 +203,8 @@ function StopCard({
                       key={alt.station.id}
                       alt={alt}
                       onSwap={() => onSwap(alt.station.id)}
+                      onHover={() => onAlternativeHover(alt.station.id)}
+                      onLeave={() => onAlternativeHover(null)}
                     />
                   ))}
                 </div>
@@ -214,6 +225,7 @@ export function ResultsPanel({
   onAddStation,
   onSwapStation,
   onRemoveStation,
+  onAlternativeHover,
   forcedStationIds,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
@@ -280,6 +292,7 @@ export function ResultsPanel({
             onAdd={() => onAddStation(stop.station.id)}
             onRemove={() => onRemoveStation(stop.station.id)}
             onSwap={(newId) => onSwapStation(stop.station.id, newId)}
+            onAlternativeHover={onAlternativeHover}
             isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
           />
         ))}

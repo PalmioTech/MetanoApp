@@ -34,6 +34,7 @@ function HomePage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
+  const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
 
   const runPlan = async (req: PlanRequest) => {
     setLoading(true);
@@ -86,6 +87,7 @@ function HomePage() {
         <MapView
           result={result}
           highlightedStopNumber={highlighted}
+          externalHoveredStationId={hoveredAltId}
           onStationClick={setSelectedStation}
         />
       </Suspense>
@@ -164,6 +166,7 @@ function HomePage() {
                 onAddStation={handleAddStation}
                 onSwapStation={handleSwapStation}
                 onRemoveStation={handleRemoveStation}
+                onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
               />
             )}

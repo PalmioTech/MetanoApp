@@ -170,6 +170,8 @@ function pickStops(
   maxRange: number,
   safety: number,
   forcedIds: Set<number> = new Set(),
+  startTime: Date = new Date(),
+  durationMin: number = 0,
 ): { picked: Candidate[]; warnings: string[] } {
   const usable = (range: number) => Math.max(0, range - safety);
   const picked: Candidate[] = [];
@@ -177,6 +179,11 @@ function pickStops(
   let pos = 0;
   let range = currentRange;
   let lastIdx = -1;
+
+  const etaAt = (cumKm: number) => {
+    const minutes = totalKm > 0 ? Math.round((cumKm / totalKm) * durationMin) : 0;
+    return new Date(startTime.getTime() + minutes * 60_000);
+  };
 
   // Build sorted list of forced candidates by cumKm
   const forced = candidates
@@ -186,10 +193,8 @@ function pickStops(
   let forcedPtr = 0;
 
   while (pos + usable(range) < totalKm || forcedPtr < forced.length) {
-    // If next forced stop is within reach OR we still need to insert it, prioritize it.
     const nextForced = forced[forcedPtr];
 
-    // If forced stop is reachable from current pos, take it directly.
     if (nextForced && nextForced.c.cumKm > pos + 0.1 && nextForced.c.cumKm - pos <= usable(range)) {
       picked.push(nextForced.c);
       pos = nextForced.c.cumKm;
@@ -199,7 +204,6 @@ function pickStops(
       continue;
     }
 
-    // If forced stop exists but is OUT of reach, we still need a refuel before it.
     const upperLimitCum = nextForced ? Math.min(totalKm, nextForced.c.cumKm) : totalKm;
 
     let bestIdx = -1;
@@ -213,29 +217,34 @@ function pickStops(
       if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
     }
 
-    // No more refuel needed and no pending forced stop -> done.
     if (bestIdx === -1 && !nextForced) break;
     if (bestIdx === -1) {
       warnings.push("Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso.");
       break;
     }
 
-    // Among candidates near bestCum (within last 25 km of reach), prefer cheapest
+    // Among reachable candidates in the last 25 km of reach, prefer OPEN first, then cheapest.
     const minCum = bestCum - 25;
-    let chosen = bestIdx;
-    let bestPrice = candidates[bestIdx].station.price ?? Infinity;
+    let chosen = -1;
+    let chosenScore: [number, number] = [2, Infinity]; // [closedRank (0=open,1=unknown,2=closed), price]
     for (let i = lastIdx + 1; i <= bestIdx; i++) {
       const c = candidates[i];
       if (c.cumKm < minCum) continue;
-      const p = c.station.price ?? Infinity;
-      if (p < bestPrice) { bestPrice = p; chosen = i; }
+      const open = isStationOpenAt(c.station, etaAt(c.cumKm));
+      const openRank = open === true ? 0 : open === null ? 1 : 2;
+      const price = c.station.price ?? Infinity;
+      if (openRank < chosenScore[0] || (openRank === chosenScore[0] && price < chosenScore[1])) {
+        chosen = i;
+        chosenScore = [openRank, price];
+      }
     }
+    if (chosen === -1) chosen = bestIdx;
+
     picked.push(candidates[chosen]);
     pos = candidates[chosen].cumKm;
     range = maxRange;
     lastIdx = chosen;
 
-    // If the chosen one happened to be the forced one, advance the pointer.
     if (nextForced && candidates[chosen].station.id === nextForced.c.station.id) {
       forcedPtr++;
     }
@@ -301,16 +310,46 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   if (!originG) missing.push(req.origin);
   else points.push([originG.lat, originG.lng]);
 
+  // Insert string/coord waypoints from the form first
+  const formWaypoints: [number, number][] = [];
   for (const w of req.waypoints) {
     if (!w) continue;
     const { point, label } = resolveWaypoint(w);
     if (!point) missing.push(label);
-    else points.push(point);
+    else formWaypoints.push(point);
   }
+  points.push(...formWaypoints);
 
   const destG = geocodeCity(req.destination);
   if (!destG) missing.push(req.destination);
   else points.push([destG.lat, destG.lng]);
+
+  // Forced station IDs: insert them as routing waypoints in geographic order
+  // between origin and destination so OSRM physically routes through them.
+  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
+  for (const w of req.waypoints) {
+    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
+      forcedSet.add(w.forced_station_id);
+    }
+  }
+
+  if (forcedSet.size > 0 && points.length >= 2) {
+    const origin = points[0];
+    const dest = points[points.length - 1];
+    const totalDirect = haversine(origin, dest) || 1;
+    const forcedStations = ALL_STATIONS.filter((s) => forcedSet.has(s.id));
+    // Order forced stations by progress along origin->dest direction
+    const ordered = forcedStations
+      .map((s) => ({
+        s,
+        t: haversine(origin, [s.lat, s.lng]) / (haversine(origin, [s.lat, s.lng]) + haversine([s.lat, s.lng], dest) || 1),
+        progress: haversine(origin, [s.lat, s.lng]) / totalDirect,
+      }))
+      .sort((a, b) => a.progress - b.progress);
+    // Insert before destination
+    const insertPos = points.length - 1;
+    points.splice(insertPos, 0, ...ordered.map((x) => [x.s.lat, x.s.lng] as [number, number]));
+  }
 
   if (points.length < 2) {
     return {
@@ -354,13 +393,9 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   const candidatesAll = candidatesAlongRoute(polyline, cumulative);
 
-  // Forced station IDs come either from explicit list or from waypoints with forced_station_id
-  const forcedSet = new Set<number>(req.forced_station_ids ?? []);
-  for (const w of req.waypoints) {
-    if (w && typeof w !== "string" && typeof w.forced_station_id === "number") {
-      forcedSet.add(w.forced_station_id);
-    }
-  }
+  // forcedSet was already computed above (used for routing waypoints)
+
+  const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
@@ -369,12 +404,12 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     req.max_range_km,
     req.safety_margin_km,
     forcedSet,
+    startTime,
+    durationMin,
   );
   warnings.push(...pickWarnings);
 
-  const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
-
-  // Build alternatives for each picked stop: 3 nearest candidates by cumKm (excluding picked itself & other picked stops)
+  // Build alternatives for each picked stop: candidates near same cumKm (within ±40 km), not already picked
   const pickedIds = new Set(picked.map((p) => p.station.id));
 
   const stops = picked.map((c, i) => {
@@ -382,17 +417,24 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     const eta = new Date(startTime.getTime() + minutes * 60_000);
     const etaStr = eta.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
-    // Alternatives: candidates near same cumKm (within ±40 km), not already picked, by proximity in cumKm
-    const alts: StopAlternative[] = candidatesAll
+    // Alternatives: candidates near same cumKm (within ±40 km), not already picked.
+    // Take a pool by proximity, then re-rank: open first, then closed/unknown.
+    const pool = candidatesAll
       .filter((cand) => !pickedIds.has(cand.station.id))
       .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
       .sort((a, b) => Math.abs(a.cumKm - c.cumKm) - Math.abs(b.cumKm - c.cumKm))
-      .slice(0, 3)
+      .slice(0, 8)
       .map((cand) => ({
         station: cand.station,
         detour_km: cand.detourKm,
         is_open_at_eta: isStationOpenAt(cand.station, eta),
       }));
+
+    const openAlts = pool.filter((a) => a.is_open_at_eta === true).slice(0, 2);
+    const otherAlts = pool
+      .filter((a) => a.is_open_at_eta !== true && !openAlts.includes(a))
+      .slice(0, 2);
+    const alts: StopAlternative[] = [...openAlts, ...otherAlts];
 
     return {
       stop_number: i + 1,
