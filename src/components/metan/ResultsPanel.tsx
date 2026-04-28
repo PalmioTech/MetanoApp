@@ -69,6 +69,7 @@ function StopCard({
   onHover,
   onLeave,
   onAdd,
+  onRemove,
   onSwap,
   isAdded,
 }: {
@@ -77,6 +78,7 @@ function StopCard({
   onHover: () => void;
   onLeave: () => void;
   onAdd: () => void;
+  onRemove: () => void;
   onSwap: (newId: number) => void;
   isAdded: boolean;
 }) {
