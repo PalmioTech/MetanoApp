@@ -73,6 +73,13 @@ function HomePage() {
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
+  const handleRemoveStation = async (stationId: number) => {
+    if (!lastReq) return;
+    const next = forcedStationIds.filter((id) => id !== stationId);
+    setForcedStationIds(next);
+    await runPlan({ ...lastReq, forced_station_ids: next });
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background">
       <Suspense fallback={<div className="w-screen h-screen bg-secondary animate-pulse" />}>
@@ -156,6 +163,7 @@ function HomePage() {
                 onEdit={handleEdit}
                 onAddStation={handleAddStation}
                 onSwapStation={handleSwapStation}
+                onRemoveStation={handleRemoveStation}
                 forcedStationIds={forcedStationIds}
               />
             )}

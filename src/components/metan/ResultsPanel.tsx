@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ interface ResultsPanelProps {
   onHighlight: (n: number | null) => void;
   onEdit: () => void;
   onAddStation: (stationId: number) => void;
+  onRemoveStation: (stationId: number) => void;
   onSwapStation: (oldStationId: number, newStationId: number) => void;
   forcedStationIds: number[];
 }
@@ -68,6 +69,7 @@ function StopCard({
   onHover,
   onLeave,
   onAdd,
+  onRemove,
   onSwap,
   isAdded,
 }: {
@@ -76,6 +78,7 @@ function StopCard({
   onHover: () => void;
   onLeave: () => void;
   onAdd: () => void;
+  onRemove: () => void;
   onSwap: (newId: number) => void;
   isAdded: boolean;
 }) {
@@ -145,22 +148,22 @@ function StopCard({
             </a>
             <button
               type="button"
-              disabled={isAdded}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isAdded) onAdd();
+                if (isAdded) onRemove();
+                else onAdd();
               }}
               className={cn(
                 "flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg transition",
                 isAdded
-                  ? "bg-success/15 text-success-foreground border border-success/40 cursor-default"
+                  ? "bg-destructive/10 text-destructive border border-destructive/40 hover:bg-destructive/20"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"
               )}
             >
               {isAdded ? (
                 <>
-                  <Check className="h-3.5 w-3.5" />
-                  Tappa aggiunta
+                  <X className="h-3.5 w-3.5" />
+                  Rimuovi tappa
                 </>
               ) : (
                 <>
@@ -210,6 +213,7 @@ export function ResultsPanel({
   onEdit,
   onAddStation,
   onSwapStation,
+  onRemoveStation,
   forcedStationIds,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
@@ -274,6 +278,7 @@ export function ResultsPanel({
             onHover={() => onHighlight(stop.stop_number)}
             onLeave={() => onHighlight(null)}
             onAdd={() => onAddStation(stop.station.id)}
+            onRemove={() => onRemoveStation(stop.station.id)}
             onSwap={(newId) => onSwapStation(stop.station.id, newId)}
             isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
           />
