@@ -148,16 +148,20 @@ export function MapView({ result, highlightedStopNumber, onStationClick }: MapVi
         <Marker
           key={s.id}
           position={[s.lat, s.lng]}
-          icon={grayIcon}
-          eventHandlers={{ click: () => onStationClick(s) }}
+          icon={grayIcon(hoveredStationId === s.id)}
+          eventHandlers={{
+            click: () => onStationClick(s),
+            mouseover: () => setHoveredStationId(s.id),
+            mouseout: () => setHoveredStationId((id) => (id === s.id ? null : id)),
+          }}
         />
       ))}
 
       {result?.stops.map((stop) => (
         <Marker
-          key={stop.station.id}
+          key={`${stop.station.id}-${highlightedStopNumber === stop.stop_number ? "h" : "n"}`}
           position={[stop.station.lat, stop.station.lng]}
-          icon={greenIcon(stop.stop_number, highlightedStopNumber === stop.stop_number)}
+          icon={stopIcon(stop.stop_number, highlightedStopNumber === stop.stop_number)}
           eventHandlers={{ click: () => onStationClick(stop.station) }}
         />
       ))}
