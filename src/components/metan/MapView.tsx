@@ -5,29 +5,46 @@ import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
 
-const greenIcon = (number: number, highlighted = false) =>
-  L.divIcon({
+const stopIcon = (number: number, highlighted = false) => {
+  // Highlighted = vivid orange/amber so the user clearly sees which stop is selected.
+  // Default = green gradient.
+  const size = highlighted ? 44 : 34;
+  const bg = highlighted
+    ? "linear-gradient(135deg, oklch(0.72 0.19 50), oklch(0.78 0.18 65))"
+    : "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))";
+  const shadow = highlighted
+    ? "0 6px 20px rgba(234,88,12,.55)"
+    : "0 4px 14px rgba(22,163,74,.45)";
+  const ring = highlighted
+    ? "outline:4px solid oklch(0.78 0.18 65 / .35);outline-offset:2px;"
+    : "";
+  return L.divIcon({
     className: "metan-marker",
     html: `<div style="
-      width:${highlighted ? 40 : 34}px;height:${highlighted ? 40 : 34}px;border-radius:50%;
-      background:linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155));
-      border:3px solid white;box-shadow:0 4px 14px rgba(22,163,74,.45);
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${bg};
+      border:3px solid white;box-shadow:${shadow};
       display:flex;align-items:center;justify-content:center;color:white;font-weight:700;
       font-family:Inter,sans-serif;font-size:14px;transform:translate(-50%,-50%);
-      ${highlighted ? "outline:3px solid oklch(0.72 0.18 155 / .35);outline-offset:2px;" : ""}
+      transition:all .15s ease;${ring}
     ">${number}</div>`,
     iconSize: [0, 0],
   });
+};
 
-const grayIcon = L.divIcon({
-  className: "metan-marker",
-  html: `<div style="
-    width:18px;height:18px;border-radius:50%;background:#9ca3af;
-    border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.2);
-    transform:translate(-50%,-50%);opacity:.8;
-  "></div>`,
-  iconSize: [0, 0],
-});
+const grayIcon = (hover = false) =>
+  L.divIcon({
+    className: "metan-marker metan-marker-candidate",
+    html: `<div style="
+      width:${hover ? 26 : 18}px;height:${hover ? 26 : 18}px;border-radius:50%;
+      background:${hover ? "oklch(0.62 0.17 150)" : "#9ca3af"};
+      border:${hover ? 3 : 2}px solid white;
+      box-shadow:${hover ? "0 4px 12px rgba(22,163,74,.45)" : "0 2px 6px rgba(0,0,0,.2)"};
+      transform:translate(-50%,-50%);opacity:${hover ? 1 : .85};
+      transition:all .15s ease;cursor:pointer;
+    "></div>`,
+    iconSize: [0, 0],
+  });
 
 const pinIcon = (color: string) =>
   L.divIcon({
