@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,9 @@ interface ResultsPanelProps {
   onSwapStation: (oldStationId: number, newStationId: number) => void;
   onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
+  simulating: boolean;
+  onStartSimulation: () => void;
+  onStopSimulation: () => void;
 }
 
 function statusColor(open: boolean | null) {
@@ -227,10 +230,16 @@ export function ResultsPanel({
   onRemoveStation,
   onAlternativeHover,
   forcedStationIds,
+  simulating,
+  onStartSimulation,
+  onStopSimulation,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
   const forcedSet = new Set(forcedStationIds);
+  const remaining = result.meta.remaining_range_km;
+  const margin = result.meta.safety_margin_km;
+  const canStart = remaining >= margin;
 
   return (
     <div className="flex flex-col h-full">
@@ -298,17 +307,41 @@ export function ResultsPanel({
         ))}
 
         {/* Arrival card */}
-        <div className="rounded-xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground p-4 shadow-md">
+        <div className={cn(
+          "rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br",
+          canStart ? "from-primary to-primary-glow" : "from-destructive to-destructive/70"
+        )}>
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs opacity-90">Arrivo a destinazione</div>
               <div className="font-semibold text-base mt-0.5">Autonomia residua</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">{result.meta.remaining_range_km}</div>
+              <div className="text-2xl font-bold">{remaining}</div>
               <div className="text-xs opacity-90">km</div>
             </div>
           </div>
+          <div className="mt-3 text-[11px] opacity-90">
+            Margine di sicurezza richiesto: {margin} km
+          </div>
+          <button
+            type="button"
+            onClick={simulating ? onStopSimulation : onStartSimulation}
+            disabled={!canStart && !simulating}
+            className={cn(
+              "mt-3 w-full h-10 rounded-lg font-semibold text-sm inline-flex items-center justify-center gap-2 transition",
+              "bg-white/95 text-foreground hover:bg-white",
+              "disabled:opacity-60 disabled:cursor-not-allowed"
+            )}
+          >
+            {simulating ? (
+              <><Square className="h-4 w-4" /> Ferma navigazione</>
+            ) : canStart ? (
+              <><Play className="h-4 w-4" /> Avvia navigazione</>
+            ) : (
+              <><AlertTriangle className="h-4 w-4" /> Autonomia insufficiente</>
+            )}
+          </button>
         </div>
       </div>
     </div>
