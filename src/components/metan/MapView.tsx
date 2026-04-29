@@ -183,6 +183,11 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     return out;
   }, [bounds, zoom, recommendedIds, result]);
 
+  const carPos = useMemo(() => {
+    if (!simulating || !result || result.route.polyline.length === 0) return null;
+    return interpolateOnPolyline(result.route.polyline, simulationProgress ?? 0);
+  }, [simulating, simulationProgress, result]);
+
   return (
     <MapContainer
       center={[42.5, 12.5]}
@@ -236,8 +241,13 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         />
       ))}
 
+      {carPos && (
+        <Marker position={carPos} icon={carIcon()} />
+      )}
+
       <FitBounds result={result} />
-      <FlyToStop result={result} stopNumber={highlightedStopNumber} />
+      {!simulating && <FlyToStop result={result} stopNumber={highlightedStopNumber} />}
+      <FollowCar pos={carPos} active={!!simulating} />
     </MapContainer>
   );
 }
