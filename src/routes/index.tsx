@@ -64,6 +64,7 @@ function HomePage() {
     if (forcedStationIds.includes(stationId)) return;
     const next = [...forcedStationIds, stationId];
     setForcedStationIds(next);
+    setHighlighted(null); // return map to overview
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
@@ -71,6 +72,7 @@ function HomePage() {
     if (!lastReq) return;
     const next = forcedStationIds.filter((id) => id !== oldId).concat(newId);
     setForcedStationIds(next);
+    setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
@@ -78,6 +80,7 @@ function HomePage() {
     if (!lastReq) return;
     const next = forcedStationIds.filter((id) => id !== stationId);
     setForcedStationIds(next);
+    setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
@@ -131,8 +134,8 @@ function HomePage() {
             // Mobile: bottom sheet
             "left-0 right-0 bottom-0 md:left-auto",
             drawerOpen
-              ? "max-h-[70vh] md:max-h-[calc(100vh-2rem)]"
-              : "max-h-[64px]"
+              ? "h-[80vh] md:h-[calc(100vh-2rem)]"
+              : "h-[64px]"
           )}
         >
           <div className="bg-card border border-border md:rounded-2xl rounded-t-3xl shadow-[var(--shadow-panel)] overflow-hidden h-full flex flex-col">
@@ -174,7 +177,14 @@ function HomePage() {
         </div>
       )}
 
-      <StationSheet station={selectedStation} onClose={() => setSelectedStation(null)} />
+      <StationSheet
+        station={selectedStation}
+        onClose={() => setSelectedStation(null)}
+        canAdd={!!result}
+        isAdded={selectedStation ? forcedStationIds.includes(selectedStation.id) : false}
+        onAddStation={handleAddStation}
+        onRemoveStation={handleRemoveStation}
+      />
     </div>
   );
 }

@@ -73,7 +73,8 @@ function FlyToStop({ result, stopNumber }: { result: PlanResult | null; stopNumb
     if (stopNumber == null || !result) return;
     const stop = result.stops.find((s) => s.stop_number === stopNumber);
     if (!stop) return;
-    map.flyTo([stop.station.lat, stop.station.lng], 13, { duration: 0.8 });
+    const targetZoom = Math.max(map.getZoom(), 9);
+    map.flyTo([stop.station.lat, stop.station.lng], targetZoom, { duration: 0.6 });
   }, [stopNumber, result, map]);
   return null;
 }

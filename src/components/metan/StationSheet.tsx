@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 interface StationSheetProps {
   station: Station | null;
   onClose: () => void;
+  onAddStation?: (stationId: number) => void;
+  onRemoveStation?: (stationId: number) => void;
+  isAdded?: boolean;
+  canAdd?: boolean;
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -21,7 +25,7 @@ function formatIntervals(intervals: { open: string; close: string }[] | null): s
   return intervals.map((i) => `${i.open}–${i.close}`).join(" / ");
 }
 
-export function StationSheet({ station, onClose }: StationSheetProps) {
+export function StationSheet({ station, onClose, onAddStation, onRemoveStation, isAdded, canAdd }: StationSheetProps) {
   if (!station) return null;
 
   const now = new Date();
@@ -146,10 +150,26 @@ export function StationSheet({ station, onClose }: StationSheetProps) {
             </div>
           </div>
 
-          <Button className="w-full mt-5 h-11 bg-gradient-to-r from-primary to-primary-glow font-semibold gap-2">
-            <Plus className="h-4 w-4" />
-            Aggiungi al percorso
-          </Button>
+          {canAdd && (
+            isAdded ? (
+              <Button
+                onClick={() => { onRemoveStation?.(station.id); onClose(); }}
+                variant="outline"
+                className="w-full mt-5 h-11 border-destructive/40 text-destructive hover:bg-destructive/10 font-semibold gap-2"
+              >
+                <X className="h-4 w-4" />
+                Rimuovi dal percorso
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { onAddStation?.(station.id); onClose(); }}
+                className="w-full mt-5 h-11 bg-gradient-to-r from-primary to-primary-glow font-semibold gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Aggiungi al percorso
+              </Button>
+            )
+          )}
         </div>
       </div>
     </>
