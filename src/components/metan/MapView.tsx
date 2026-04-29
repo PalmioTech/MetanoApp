@@ -32,19 +32,29 @@ const stopIcon = (number: number, highlighted = false) => {
   });
 };
 
-const grayIcon = (hover = false) =>
-  L.divIcon({
+const grayIcon = (hover = false) => {
+  const size = hover ? 28 : 20;
+  const inner = hover ? 10 : 7;
+  const bg = hover
+    ? "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))"
+    : "linear-gradient(135deg, oklch(0.55 0.02 250), oklch(0.65 0.02 250))";
+  const shadow = hover
+    ? "0 6px 16px rgba(22,163,74,.5)"
+    : "0 2px 6px rgba(15,23,42,.25)";
+  return L.divIcon({
     className: "metan-marker metan-marker-candidate",
     html: `<div style="
-      width:${hover ? 26 : 18}px;height:${hover ? 26 : 18}px;border-radius:50%;
-      background:${hover ? "oklch(0.62 0.17 150)" : "#9ca3af"};
-      border:${hover ? 3 : 2}px solid white;
-      box-shadow:${hover ? "0 4px 12px rgba(22,163,74,.45)" : "0 2px 6px rgba(0,0,0,.2)"};
-      transform:translate(-50%,-50%);opacity:${hover ? 1 : .85};
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${bg};
+      border:2px solid white;
+      box-shadow:${shadow};
+      display:flex;align-items:center;justify-content:center;
+      transform:translate(-50%,-50%);
       transition:all .15s ease;cursor:pointer;
-    "></div>`,
+    "><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:white;opacity:.9;"></div></div>`,
     iconSize: [0, 0],
   });
+};
 
 const pinIcon = (color: string) =>
   L.divIcon({
