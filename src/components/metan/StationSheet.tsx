@@ -25,7 +25,7 @@ function formatIntervals(intervals: { open: string; close: string }[] | null): s
   return intervals.map((i) => `${i.open}–${i.close}`).join(" / ");
 }
 
-export function StationSheet({ station, onClose }: StationSheetProps) {
+export function StationSheet({ station, onClose, onAddStation, onRemoveStation, isAdded, canAdd }: StationSheetProps) {
   if (!station) return null;
 
   const now = new Date();
