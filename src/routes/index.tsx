@@ -131,6 +131,8 @@ function HomePage() {
           highlightedStopNumber={highlighted}
           externalHoveredStationId={hoveredAltId}
           onStationClick={setSelectedStation}
+          simulating={simulating}
+          simulationProgress={simProgress}
         />
       </Suspense>
 
@@ -210,6 +212,9 @@ function HomePage() {
                 onRemoveStation={handleRemoveStation}
                 onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
+                simulating={simulating}
+                onStartSimulation={handleStartSim}
+                onStopSimulation={handleStopSim}
               />
             )}
           </div>
