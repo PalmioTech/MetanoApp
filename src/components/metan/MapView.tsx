@@ -210,8 +210,8 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
 
   return (
     <MapContainer
-      center={[42.5, 12.5]}
-      zoom={6}
+      bounds={L.latLngBounds([35.4, 6.5], [47.1, 18.6])}
+      boundsOptions={{ padding: [20, 20] }}
       className="h-screen w-screen"
       zoomControl={false}
     >
