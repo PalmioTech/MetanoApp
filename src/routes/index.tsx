@@ -134,8 +134,8 @@ function HomePage() {
             // Mobile: bottom sheet
             "left-0 right-0 bottom-0 md:left-auto",
             drawerOpen
-              ? "max-h-[70vh] md:max-h-[calc(100vh-2rem)]"
-              : "max-h-[64px]"
+              ? "h-[80vh] md:h-[calc(100vh-2rem)]"
+              : "h-[64px]"
           )}
         >
           <div className="bg-card border border-border md:rounded-2xl rounded-t-3xl shadow-[var(--shadow-panel)] overflow-hidden h-full flex flex-col">
