@@ -182,6 +182,7 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
       ))}
 
       <FitBounds result={result} />
+      <FlyToStop result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>
   );
 }
