@@ -155,9 +155,19 @@ function interpolateOnPolyline(poly: [number, number][], t: number): [number, nu
 
 function FollowCar({ pos, active }: { pos: [number, number] | null; active: boolean }) {
   const map = useMap();
+  const initRef = useRef(false);
   useEffect(() => {
-    if (!active || !pos) return;
-    map.panTo(pos, { animate: true, duration: 0.6 });
+    if (!active) {
+      initRef.current = false;
+      return;
+    }
+    if (!pos) return;
+    if (!initRef.current) {
+      initRef.current = true;
+      map.flyTo(pos, 15, { duration: 1.2 });
+    } else {
+      map.panTo(pos, { animate: true, duration: 0.6 });
+    }
   }, [pos, active, map]);
   return null;
 }
