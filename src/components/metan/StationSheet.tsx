@@ -150,10 +150,26 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             </div>
           </div>
 
-          <Button className="w-full mt-5 h-11 bg-gradient-to-r from-primary to-primary-glow font-semibold gap-2">
-            <Plus className="h-4 w-4" />
-            Aggiungi al percorso
-          </Button>
+          {canAdd && (
+            isAdded ? (
+              <Button
+                onClick={() => { onRemoveStation?.(station.id); onClose(); }}
+                variant="outline"
+                className="w-full mt-5 h-11 border-destructive/40 text-destructive hover:bg-destructive/10 font-semibold gap-2"
+              >
+                <X className="h-4 w-4" />
+                Rimuovi dal percorso
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { onAddStation?.(station.id); onClose(); }}
+                className="w-full mt-5 h-11 bg-gradient-to-r from-primary to-primary-glow font-semibold gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Aggiungi al percorso
+              </Button>
+            )
+          )}
         </div>
       </div>
     </>
