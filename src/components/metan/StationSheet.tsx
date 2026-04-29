@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 interface StationSheetProps {
   station: Station | null;
   onClose: () => void;
+  onAddStation?: (stationId: number) => void;
+  onRemoveStation?: (stationId: number) => void;
+  isAdded?: boolean;
+  canAdd?: boolean;
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
