@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
@@ -35,6 +35,45 @@ function HomePage() {
   const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simProgress, setSimProgress] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  // Simulation loop: drive progress from 0 to 1 over ~30s for visual effect
+  useEffect(() => {
+    if (!simulating) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+    const DURATION_MS = 30000;
+    const start = performance.now() - simProgress * DURATION_MS;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / DURATION_MS);
+      setSimProgress(t);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        setSimulating(false);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulating]);
+
+  const handleStartSim = () => {
+    setSimProgress(0);
+    setHighlighted(null);
+    setSimulating(true);
+    setDrawerOpen(false);
+  };
+
+  const handleStopSim = () => {
+    setSimulating(false);
+    setSimProgress(0);
+  };
 
   const runPlan = async (req: PlanRequest) => {
     setLoading(true);
@@ -92,6 +131,8 @@ function HomePage() {
           highlightedStopNumber={highlighted}
           externalHoveredStationId={hoveredAltId}
           onStationClick={setSelectedStation}
+          simulating={simulating}
+          simulationProgress={simProgress}
         />
       </Suspense>
 
@@ -171,6 +212,9 @@ function HomePage() {
                 onRemoveStation={handleRemoveStation}
                 onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
+                simulating={simulating}
+                onStartSimulation={handleStartSim}
+                onStopSimulation={handleStopSim}
               />
             )}
           </div>
