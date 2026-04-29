@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -32,19 +32,29 @@ const stopIcon = (number: number, highlighted = false) => {
   });
 };
 
-const grayIcon = (hover = false) =>
-  L.divIcon({
+const grayIcon = (hover = false) => {
+  const size = hover ? 28 : 20;
+  const inner = hover ? 10 : 7;
+  const bg = hover
+    ? "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))"
+    : "linear-gradient(135deg, oklch(0.55 0.02 250), oklch(0.65 0.02 250))";
+  const shadow = hover
+    ? "0 6px 16px rgba(22,163,74,.5)"
+    : "0 2px 6px rgba(15,23,42,.25)";
+  return L.divIcon({
     className: "metan-marker metan-marker-candidate",
     html: `<div style="
-      width:${hover ? 26 : 18}px;height:${hover ? 26 : 18}px;border-radius:50%;
-      background:${hover ? "oklch(0.62 0.17 150)" : "#9ca3af"};
-      border:${hover ? 3 : 2}px solid white;
-      box-shadow:${hover ? "0 4px 12px rgba(22,163,74,.45)" : "0 2px 6px rgba(0,0,0,.2)"};
-      transform:translate(-50%,-50%);opacity:${hover ? 1 : .85};
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${bg};
+      border:2px solid white;
+      box-shadow:${shadow};
+      display:flex;align-items:center;justify-content:center;
+      transform:translate(-50%,-50%);
       transition:all .15s ease;cursor:pointer;
-    "></div>`,
+    "><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:white;opacity:.9;"></div></div>`,
     iconSize: [0, 0],
   });
+};
 
 const pinIcon = (color: string) =>
   L.divIcon({
@@ -73,7 +83,7 @@ function FlyToStop({ result, stopNumber }: { result: PlanResult | null; stopNumb
     if (stopNumber == null || !result) return;
     const stop = result.stops.find((s) => s.stop_number === stopNumber);
     if (!stop) return;
-    const targetZoom = Math.max(map.getZoom(), 9);
+    const targetZoom = Math.max(map.getZoom(), 13);
     map.flyTo([stop.station.lat, stop.station.lng], targetZoom, { duration: 0.6 });
   }, [stopNumber, result, map]);
   return null;
@@ -145,9 +155,19 @@ function interpolateOnPolyline(poly: [number, number][], t: number): [number, nu
 
 function FollowCar({ pos, active }: { pos: [number, number] | null; active: boolean }) {
   const map = useMap();
+  const initRef = useRef(false);
   useEffect(() => {
-    if (!active || !pos) return;
-    map.panTo(pos, { animate: true, duration: 0.6 });
+    if (!active) {
+      initRef.current = false;
+      return;
+    }
+    if (!pos) return;
+    if (!initRef.current) {
+      initRef.current = true;
+      map.flyTo(pos, 15, { duration: 1.2 });
+    } else {
+      map.panTo(pos, { animate: true, duration: 0.6 });
+    }
   }, [pos, active, map]);
   return null;
 }
@@ -190,8 +210,8 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
 
   return (
     <MapContainer
-      center={[42.5, 12.5]}
-      zoom={6}
+      bounds={L.latLngBounds([35.4, 6.5], [47.1, 18.6])}
+      boundsOptions={{ padding: [20, 20] }}
       className="h-screen w-screen"
       zoomControl={false}
     >
