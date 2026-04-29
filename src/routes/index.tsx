@@ -64,6 +64,7 @@ function HomePage() {
     if (forcedStationIds.includes(stationId)) return;
     const next = [...forcedStationIds, stationId];
     setForcedStationIds(next);
+    setHighlighted(null); // return map to overview
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
@@ -71,6 +72,7 @@ function HomePage() {
     if (!lastReq) return;
     const next = forcedStationIds.filter((id) => id !== oldId).concat(newId);
     setForcedStationIds(next);
+    setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
@@ -78,6 +80,7 @@ function HomePage() {
     if (!lastReq) return;
     const next = forcedStationIds.filter((id) => id !== stationId);
     setForcedStationIds(next);
+    setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: next });
   };
 
