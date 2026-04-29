@@ -177,7 +177,14 @@ function HomePage() {
         </div>
       )}
 
-      <StationSheet station={selectedStation} onClose={() => setSelectedStation(null)} />
+      <StationSheet
+        station={selectedStation}
+        onClose={() => setSelectedStation(null)}
+        canAdd={!!result}
+        isAdded={selectedStation ? forcedStationIds.includes(selectedStation.id) : false}
+        onAddStation={handleAddStation}
+        onRemoveStation={handleRemoveStation}
+      />
     </div>
   );
 }
