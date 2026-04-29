@@ -67,6 +67,17 @@ function FitBounds({ result }: { result: PlanResult | null }) {
   return null;
 }
 
+function FlyToStop({ result, stopNumber }: { result: PlanResult | null; stopNumber: number | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (stopNumber == null || !result) return;
+    const stop = result.stops.find((s) => s.stop_number === stopNumber);
+    if (!stop) return;
+    map.flyTo([stop.station.lat, stop.station.lng], 13, { duration: 0.8 });
+  }, [stopNumber, result, map]);
+  return null;
+}
+
 function ViewportTracker({ onChange }: { onChange: (b: L.LatLngBounds, zoom: number) => void }) {
   const map = useMapEvents({
     moveend: () => onChange(map.getBounds(), map.getZoom()),
