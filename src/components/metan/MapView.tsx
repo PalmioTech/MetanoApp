@@ -96,9 +96,63 @@ interface MapViewProps {
   highlightedStopNumber: number | null;
   externalHoveredStationId?: number | null;
   onStationClick: (s: Station) => void;
+  simulating?: boolean;
+  simulationProgress?: number; // 0..1 along route polyline
 }
 
-export function MapView({ result, highlightedStopNumber, externalHoveredStationId, onStationClick }: MapViewProps) {
+const carIcon = () =>
+  L.divIcon({
+    className: "metan-marker metan-car",
+    html: `<div style="
+      width:36px;height:36px;border-radius:50%;
+      background:linear-gradient(135deg, oklch(0.55 0.22 25), oklch(0.65 0.20 35));
+      border:3px solid white;
+      box-shadow:0 6px 18px rgba(220,38,38,.55);
+      display:flex;align-items:center;justify-content:center;
+      transform:translate(-50%,-50%);
+      font-size:18px;
+    ">🚗</div>`,
+    iconSize: [0, 0],
+  });
+
+function interpolateOnPolyline(poly: [number, number][], t: number): [number, number] | null {
+  if (poly.length === 0) return null;
+  if (poly.length === 1) return poly[0];
+  // total length in degrees (good enough for animation)
+  const segLens: number[] = [];
+  let total = 0;
+  for (let i = 1; i < poly.length; i++) {
+    const dx = poly[i][0] - poly[i - 1][0];
+    const dy = poly[i][1] - poly[i - 1][1];
+    const l = Math.sqrt(dx * dx + dy * dy);
+    segLens.push(l);
+    total += l;
+  }
+  if (total === 0) return poly[0];
+  let target = Math.max(0, Math.min(1, t)) * total;
+  for (let i = 0; i < segLens.length; i++) {
+    if (target <= segLens[i]) {
+      const r = segLens[i] === 0 ? 0 : target / segLens[i];
+      return [
+        poly[i][0] + (poly[i + 1][0] - poly[i][0]) * r,
+        poly[i][1] + (poly[i + 1][1] - poly[i][1]) * r,
+      ];
+    }
+    target -= segLens[i];
+  }
+  return poly[poly.length - 1];
+}
+
+function FollowCar({ pos, active }: { pos: [number, number] | null; active: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!active || !pos) return;
+    map.panTo(pos, { animate: true, duration: 0.6 });
+  }, [pos, active, map]);
+  return null;
+}
+
+export function MapView({ result, highlightedStopNumber, externalHoveredStationId, onStationClick, simulating, simulationProgress }: MapViewProps) {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState<number>(7);
   const [internalHoveredId, setInternalHoveredId] = useState<number | null>(null);
