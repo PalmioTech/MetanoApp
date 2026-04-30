@@ -29,14 +29,21 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "MetanApp" },
+      { name: "description", content: "Pianifica il tuo viaggio a metano
+Trova le stazioni CNG migliori sul percorso" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "MetanApp" },
+      { property: "og:description", content: "Pianifica il tuo viaggio a metano
+Trova le stazioni CNG migliori sul percorso" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "MetanApp" },
+      { name: "twitter:description", content: "Pianifica il tuo viaggio a metano
+Trova le stazioni CNG migliori sul percorso" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5616bc3a-9f71-4a47-b75a-3982dba8a7e1/id-preview-c3b507ba--b42769ce-cb77-48e1-b2de-fb5ed0efc1e8.lovable.app-1777450967408.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5616bc3a-9f71-4a47-b75a-3982dba8a7e1/id-preview-c3b507ba--b42769ce-cb77-48e1-b2de-fb5ed0efc1e8.lovable.app-1777450967408.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
