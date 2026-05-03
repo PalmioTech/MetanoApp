@@ -68,6 +68,7 @@ export type PlanRequest = {
   safety_margin_km: number;
   depart_at?: string | null;
   forced_station_ids?: number[]; // stations that MUST be in the stop list
+  excluded_station_ids?: number[]; // stations to exclude from picks
 };
 
 export const DAY_ORDER: DayKey[] = [
