@@ -85,9 +85,9 @@ function HomePage() {
   };
 
   const handlePlan = async (req: PlanRequest) => {
-    // Fresh plan from form -> reset forced stops
     setForcedStationIds([]);
-    await runPlan({ ...req, forced_station_ids: [] });
+    setExcludedStationIds([]);
+    await runPlan({ ...req, forced_station_ids: [], excluded_station_ids: [] });
     setFormCollapsed(true);
     setDrawerOpen(true);
   };
@@ -96,6 +96,7 @@ function HomePage() {
     setFormCollapsed(false);
     setResult(null);
     setForcedStationIds([]);
+    setExcludedStationIds([]);
     setLastReq(null);
   };
 
@@ -104,16 +105,18 @@ function HomePage() {
     if (forcedStationIds.includes(stationId)) return;
     const next = [...forcedStationIds, stationId];
     setForcedStationIds(next);
-    setHighlighted(null); // return map to overview
-    await runPlan({ ...lastReq, forced_station_ids: next });
+    setHighlighted(null);
+    await runPlan({ ...lastReq, forced_station_ids: next, excluded_station_ids: excludedStationIds });
   };
 
   const handleSwapStation = async (oldId: number, newId: number) => {
     if (!lastReq) return;
-    const next = forcedStationIds.filter((id) => id !== oldId).concat(newId);
-    setForcedStationIds(next);
+    const nextForced = forcedStationIds.filter((id) => id !== oldId).concat(newId);
+    const nextExcluded = [...excludedStationIds.filter((id) => id !== newId), oldId];
+    setForcedStationIds(nextForced);
+    setExcludedStationIds(nextExcluded);
     setHighlighted(null);
-    await runPlan({ ...lastReq, forced_station_ids: next });
+    await runPlan({ ...lastReq, forced_station_ids: nextForced, excluded_station_ids: nextExcluded });
   };
 
   const handleRemoveStation = async (stationId: number) => {
