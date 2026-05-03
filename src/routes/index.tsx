@@ -71,6 +71,7 @@ function HomePage() {
     setSimProgress(0);
     setHighlighted(null);
     setSimulating(true);
+    setSimCompleted(false);
     setDrawerOpen(false);
   };
 
