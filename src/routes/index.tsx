@@ -38,6 +38,7 @@ function HomePage() {
   const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [simulating, setSimulating] = useState(false);
   const [simProgress, setSimProgress] = useState(0);
+  const [simCompleted, setSimCompleted] = useState(false);
   const rafRef = useRef<number | null>(null);
 
   // Simulation loop: drive progress from 0 to 1 over ~30s for visual effect
