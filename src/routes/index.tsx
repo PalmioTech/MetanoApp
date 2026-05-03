@@ -35,6 +35,7 @@ function HomePage() {
   const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
+  const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [simulating, setSimulating] = useState(false);
   const [simProgress, setSimProgress] = useState(0);
   const rafRef = useRef<number | null>(null);
