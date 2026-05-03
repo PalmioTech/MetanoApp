@@ -78,6 +78,7 @@ function HomePage() {
   const handleStopSim = () => {
     setSimulating(false);
     setSimProgress(0);
+    setSimCompleted(false);
   };
 
   const runPlan = async (req: PlanRequest) => {
