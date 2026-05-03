@@ -235,8 +235,12 @@ export function ResultsPanel({
   onAlternativeHover,
   forcedStationIds,
   simulating,
+  simCompleted,
   onStartSimulation,
   onStopSimulation,
+  onDismissCompleted,
+  origin,
+  destination,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
@@ -244,6 +248,17 @@ export function ResultsPanel({
   const remaining = result.meta.remaining_range_km;
   const margin = result.meta.safety_margin_km;
   const canStart = remaining >= margin;
+
+  const buildMapsUrl = (provider: "google" | "apple") => {
+    const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
+    if (provider === "google") {
+      const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
+      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints}&travelmode=driving`;
+    }
+    // Apple Maps
+    const allPoints = [origin, ...stops.map((_, i) => result.stops[i].station.name), destination];
+    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
+  };
 
   return (
     <div className="flex flex-col h-full">
