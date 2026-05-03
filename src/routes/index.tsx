@@ -35,8 +35,10 @@ function HomePage() {
   const [lastReq, setLastReq] = useState<PlanRequest | null>(null);
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
+  const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [simulating, setSimulating] = useState(false);
   const [simProgress, setSimProgress] = useState(0);
+  const [simCompleted, setSimCompleted] = useState(false);
   const rafRef = useRef<number | null>(null);
 
   // Simulation loop: drive progress from 0 to 1 over ~30s for visual effect
@@ -54,6 +56,8 @@ function HomePage() {
         rafRef.current = requestAnimationFrame(tick);
       } else {
         setSimulating(false);
+        setSimCompleted(true);
+        setDrawerOpen(true);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -67,12 +71,14 @@ function HomePage() {
     setSimProgress(0);
     setHighlighted(null);
     setSimulating(true);
+    setSimCompleted(false);
     setDrawerOpen(false);
   };
 
   const handleStopSim = () => {
     setSimulating(false);
     setSimProgress(0);
+    setSimCompleted(false);
   };
 
   const runPlan = async (req: PlanRequest) => {
@@ -84,9 +90,9 @@ function HomePage() {
   };
 
   const handlePlan = async (req: PlanRequest) => {
-    // Fresh plan from form -> reset forced stops
     setForcedStationIds([]);
-    await runPlan({ ...req, forced_station_ids: [] });
+    setExcludedStationIds([]);
+    await runPlan({ ...req, forced_station_ids: [], excluded_station_ids: [] });
     setFormCollapsed(true);
     setDrawerOpen(true);
   };
@@ -95,6 +101,7 @@ function HomePage() {
     setFormCollapsed(false);
     setResult(null);
     setForcedStationIds([]);
+    setExcludedStationIds([]);
     setLastReq(null);
   };
 
@@ -103,24 +110,28 @@ function HomePage() {
     if (forcedStationIds.includes(stationId)) return;
     const next = [...forcedStationIds, stationId];
     setForcedStationIds(next);
-    setHighlighted(null); // return map to overview
-    await runPlan({ ...lastReq, forced_station_ids: next });
+    setHighlighted(null);
+    await runPlan({ ...lastReq, forced_station_ids: next, excluded_station_ids: excludedStationIds });
   };
 
   const handleSwapStation = async (oldId: number, newId: number) => {
     if (!lastReq) return;
-    const next = forcedStationIds.filter((id) => id !== oldId).concat(newId);
-    setForcedStationIds(next);
+    const nextForced = forcedStationIds.filter((id) => id !== oldId).concat(newId);
+    const nextExcluded = [...excludedStationIds.filter((id) => id !== newId), oldId];
+    setForcedStationIds(nextForced);
+    setExcludedStationIds(nextExcluded);
     setHighlighted(null);
-    await runPlan({ ...lastReq, forced_station_ids: next });
+    await runPlan({ ...lastReq, forced_station_ids: nextForced, excluded_station_ids: nextExcluded });
   };
 
   const handleRemoveStation = async (stationId: number) => {
     if (!lastReq) return;
     const next = forcedStationIds.filter((id) => id !== stationId);
+    const nextExcluded = excludedStationIds.filter((id) => id !== stationId);
     setForcedStationIds(next);
+    setExcludedStationIds(nextExcluded);
     setHighlighted(null);
-    await runPlan({ ...lastReq, forced_station_ids: next });
+    await runPlan({ ...lastReq, forced_station_ids: next, excluded_station_ids: nextExcluded });
   };
 
   return (
@@ -213,8 +224,12 @@ function HomePage() {
                 onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
                 simulating={simulating}
+                simCompleted={simCompleted}
                 onStartSimulation={handleStartSim}
                 onStopSimulation={handleStopSim}
+                onDismissCompleted={() => setSimCompleted(false)}
+                origin={lastReq?.origin ?? ""}
+                destination={lastReq?.destination ?? ""}
               />
             )}
           </div>

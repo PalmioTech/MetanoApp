@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,12 @@ interface ResultsPanelProps {
   onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
   simulating: boolean;
+  simCompleted: boolean;
   onStartSimulation: () => void;
   onStopSimulation: () => void;
+  onDismissCompleted: () => void;
+  origin: string;
+  destination: string;
 }
 
 function statusColor(open: boolean | null) {
@@ -231,8 +235,12 @@ export function ResultsPanel({
   onAlternativeHover,
   forcedStationIds,
   simulating,
+  simCompleted,
   onStartSimulation,
   onStopSimulation,
+  onDismissCompleted,
+  origin,
+  destination,
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
@@ -240,6 +248,17 @@ export function ResultsPanel({
   const remaining = result.meta.remaining_range_km;
   const margin = result.meta.safety_margin_km;
   const canStart = remaining >= margin;
+
+  const buildMapsUrl = (provider: "google" | "apple") => {
+    const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
+    if (provider === "google") {
+      const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
+      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints}&travelmode=driving`;
+    }
+    // Apple Maps
+    const allPoints = [origin, ...stops.map((_, i) => result.stops[i].station.name), destination];
+    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -334,7 +353,7 @@ export function ResultsPanel({
               "disabled:opacity-60 disabled:cursor-not-allowed"
             )}
           >
-            {simulating ? (
+           {simulating ? (
               <><Square className="h-4 w-4" /> Ferma navigazione</>
             ) : canStart ? (
               <><Play className="h-4 w-4" /> Avvia navigazione</>
@@ -343,6 +362,43 @@ export function ResultsPanel({
             )}
           </button>
         </div>
+
+        {/* Maps launch after simulation completes */}
+        {simCompleted && (
+          <div className="rounded-xl p-4 shadow-md border border-primary/30 bg-card space-y-3">
+            <div className="text-center">
+              <div className="text-sm font-semibold">🎉 Simulazione completata!</div>
+              <div className="text-xs text-muted-foreground mt-1">Apri il percorso nel navigatore</div>
+            </div>
+            <div className="flex gap-2">
+              <a
+                href={buildMapsUrl("google")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-95 transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Google Maps
+              </a>
+              <a
+                href={buildMapsUrl("apple")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-secondary text-secondary-foreground rounded-lg hover:bg-accent transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Apple Maps
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={onDismissCompleted}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition text-center py-1"
+            >
+              Chiudi
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

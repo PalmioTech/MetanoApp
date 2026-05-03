@@ -391,7 +391,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     warnings.push("Routing stradale non disponibile: percorso approssimato in linea retta.");
   }
 
-  const candidatesAll = candidatesAlongRoute(polyline, cumulative);
+  const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
+  const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter(c => !excludedSet.has(c.station.id));
 
   // forcedSet was already computed above (used for routing waypoints)
 
@@ -418,23 +419,19 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     const etaStr = eta.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
     // Alternatives: candidates near same cumKm (within ±40 km), not already picked.
-    // Take a pool by proximity, then re-rank: open first, then closed/unknown.
+    // Sort by detour (least extra distance first). Recommended = closest to route.
     const pool = candidatesAll
       .filter((cand) => !pickedIds.has(cand.station.id))
       .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
-      .sort((a, b) => Math.abs(a.cumKm - c.cumKm) - Math.abs(b.cumKm - c.cumKm))
-      .slice(0, 8)
+      .sort((a, b) => a.detourKm - b.detourKm)
+      .slice(0, 6)
       .map((cand) => ({
         station: cand.station,
         detour_km: cand.detourKm,
         is_open_at_eta: isStationOpenAt(cand.station, eta),
       }));
 
-    const openAlts = pool.filter((a) => a.is_open_at_eta === true).slice(0, 2);
-    const otherAlts = pool
-      .filter((a) => a.is_open_at_eta !== true && !openAlts.includes(a))
-      .slice(0, 2);
-    const alts: StopAlternative[] = [...openAlts, ...otherAlts];
+    const alts: StopAlternative[] = pool;
 
     return {
       stop_number: i + 1,
