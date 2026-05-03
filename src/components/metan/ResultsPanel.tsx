@@ -353,7 +353,7 @@ export function ResultsPanel({
               "disabled:opacity-60 disabled:cursor-not-allowed"
             )}
           >
-            {simulating ? (
+           {simulating ? (
               <><Square className="h-4 w-4" /> Ferma navigazione</>
             ) : canStart ? (
               <><Play className="h-4 w-4" /> Avvia navigazione</>
@@ -362,6 +362,43 @@ export function ResultsPanel({
             )}
           </button>
         </div>
+
+        {/* Maps launch after simulation completes */}
+        {simCompleted && (
+          <div className="rounded-xl p-4 shadow-md border border-primary/30 bg-card space-y-3">
+            <div className="text-center">
+              <div className="text-sm font-semibold">🎉 Simulazione completata!</div>
+              <div className="text-xs text-muted-foreground mt-1">Apri il percorso nel navigatore</div>
+            </div>
+            <div className="flex gap-2">
+              <a
+                href={buildMapsUrl("google")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-95 transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Google Maps
+              </a>
+              <a
+                href={buildMapsUrl("apple")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-secondary text-secondary-foreground rounded-lg hover:bg-accent transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Apple Maps
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={onDismissCompleted}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition text-center py-1"
+            >
+              Chiudi
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
