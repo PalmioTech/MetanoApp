@@ -224,8 +224,12 @@ function HomePage() {
                 onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
                 simulating={simulating}
+                simCompleted={simCompleted}
                 onStartSimulation={handleStartSim}
                 onStopSimulation={handleStopSim}
+                onDismissCompleted={() => setSimCompleted(false)}
+                origin={lastReq?.origin ?? ""}
+                destination={lastReq?.destination ?? ""}
               />
             )}
           </div>
