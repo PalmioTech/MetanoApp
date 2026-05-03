@@ -391,7 +391,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     warnings.push("Routing stradale non disponibile: percorso approssimato in linea retta.");
   }
 
-  const candidatesAll = candidatesAlongRoute(polyline, cumulative);
+  const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
+  const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter(c => !excludedSet.has(c.station.id));
 
   // forcedSet was already computed above (used for routing waypoints)
 
