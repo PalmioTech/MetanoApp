@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,12 @@ interface ResultsPanelProps {
   onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
   simulating: boolean;
+  simCompleted: boolean;
   onStartSimulation: () => void;
   onStopSimulation: () => void;
+  onDismissCompleted: () => void;
+  origin: string;
+  destination: string;
 }
 
 function statusColor(open: boolean | null) {
