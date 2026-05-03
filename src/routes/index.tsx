@@ -56,6 +56,8 @@ function HomePage() {
         rafRef.current = requestAnimationFrame(tick);
       } else {
         setSimulating(false);
+        setSimCompleted(true);
+        setDrawerOpen(true);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
