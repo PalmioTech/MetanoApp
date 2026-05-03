@@ -191,13 +191,11 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
       return result.candidates.map((c) => c.station);
     }
     if (!bounds) return [];
-    const cap = zoom >= 9 ? 600 : zoom >= 7 ? 250 : 120;
     const out: Station[] = [];
     for (const s of ALL_STATIONS) {
       if (recommendedIds.has(s.id)) continue;
       if (bounds.contains([s.lat, s.lng])) {
         out.push(s);
-        if (out.length >= cap) break;
       }
     }
     return out;

@@ -3,7 +3,7 @@ import { Crosshair, Plus, X, Loader2, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CITIES } from "@/lib/metan-mock";
+import { CITIES, geocodeCity } from "@/lib/metan-mock";
 import type { PlanRequest } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +26,31 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  const [nominatimResults, setNominatimResults] = useState<{ display: string; city: string }[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Search Nominatim for addresses when no city match
+  useEffect(() => {
+    if (!value || value.length < 3) { setNominatimResults([]); return; }
+    const cityMatch = CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase()));
+    if (cityMatch.length >= 3) { setNominatimResults([]); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&limit=5&q=${encodeURIComponent(value)}`,
+        );
+        const data = await res.json();
+        setNominatimResults(
+          data.map((d: any) => ({ display: d.display_name.split(",").slice(0, 3).join(","), city: d.display_name.split(",").slice(0, 2).join(",").trim() }))
+        );
+      } catch { setNominatimResults([]); }
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [value]);
+
   const filtered = value
-    ? CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase())).slice(0, 6)
+    ? CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase())).slice(0, 4)
     : [];
 
   return (
@@ -54,8 +77,8 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
           </button>
         )}
       </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-[1000] mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+      {open && (filtered.length > 0 || nominatimResults.length > 0) && (
+        <div className="absolute z-[1000] mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-52 overflow-y-auto">
           {filtered.map((c) => (
             <button
               key={c}
@@ -67,6 +90,22 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
               className="w-full text-left px-3 py-2 text-sm hover:bg-primary-soft transition"
             >
               {c}
+            </button>
+          ))}
+          {nominatimResults.length > 0 && filtered.length > 0 && (
+            <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">Indirizzi</div>
+          )}
+          {nominatimResults.map((r, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                onChange(r.city);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-primary-soft transition text-muted-foreground"
+            >
+              {r.display}
             </button>
           ))}
         </div>
