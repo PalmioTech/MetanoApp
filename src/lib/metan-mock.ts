@@ -334,7 +334,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const formWaypoints: [number, number][] = [];
   for (const w of req.waypoints) {
     if (!w) continue;
-    const { point, label } = resolveWaypoint(w);
+    const { point, label } = await resolveWaypoint(w);
     if (!point) missing.push(label);
     else formWaypoints.push(point);
   }
