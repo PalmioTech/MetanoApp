@@ -340,7 +340,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
   points.push(...formWaypoints);
 
-  const destG = geocodeCity(req.destination);
+  let destG: { lat: number; lng: number } | null = reqAny.destination_coords ?? null;
+  if (!destG) destG = await geocodeAny(req.destination);
   if (!destG) missing.push(req.destination);
   else points.push([destG.lat, destG.lng]);
 
