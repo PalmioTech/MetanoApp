@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, Play, Square, ExternalLink } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -14,11 +14,6 @@ interface ResultsPanelProps {
   onSwapStation: (oldStationId: number, newStationId: number) => void;
   onAlternativeHover: (stationId: number | null) => void;
   forcedStationIds: number[];
-  simulating: boolean;
-  simCompleted: boolean;
-  onStartSimulation: () => void;
-  onStopSimulation: () => void;
-  onDismissCompleted: () => void;
   origin: string;
   destination: string;
 }
@@ -234,11 +229,6 @@ export function ResultsPanel({
   onRemoveStation,
   onAlternativeHover,
   forcedStationIds,
-  simulating,
-  simCompleted,
-  onStartSimulation,
-  onStopSimulation,
-  onDismissCompleted,
   origin,
   destination,
 }: ResultsPanelProps) {
@@ -255,8 +245,6 @@ export function ResultsPanel({
       const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
       return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints}&travelmode=driving`;
     }
-    // Apple Maps
-    const allPoints = [origin, ...stops.map((_, i) => result.stops[i].station.name), destination];
     return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
   };
 
@@ -325,7 +313,7 @@ export function ResultsPanel({
           />
         ))}
 
-        {/* Arrival card */}
+        {/* Arrival card with navigation buttons */}
         <div className={cn(
           "rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br",
           canStart ? "from-primary to-primary-glow" : "from-destructive to-destructive/70"
@@ -343,62 +331,40 @@ export function ResultsPanel({
           <div className="mt-3 text-[11px] opacity-90">
             Margine di sicurezza richiesto: {margin} km
           </div>
-          <button
-            type="button"
-            onClick={simulating ? onStopSimulation : onStartSimulation}
-            disabled={!canStart && !simulating}
-            className={cn(
-              "mt-3 w-full h-10 rounded-lg font-semibold text-sm inline-flex items-center justify-center gap-2 transition",
-              "bg-white/95 text-foreground hover:bg-white",
-              "disabled:opacity-60 disabled:cursor-not-allowed"
-            )}
-          >
-           {simulating ? (
-              <><Square className="h-4 w-4" /> Ferma navigazione</>
-            ) : canStart ? (
-              <><Play className="h-4 w-4" /> Avvia navigazione</>
-            ) : (
-              <><AlertTriangle className="h-4 w-4" /> Autonomia insufficiente</>
-            )}
-          </button>
-        </div>
 
-        {/* Maps launch after simulation completes */}
-        {simCompleted && (
-          <div className="rounded-xl p-4 shadow-md border border-primary/30 bg-card space-y-3">
-            <div className="text-center">
-              <div className="text-sm font-semibold">🎉 Simulazione completata!</div>
-              <div className="text-xs text-muted-foreground mt-1">Apri il percorso nel navigatore</div>
+          {!canStart && (
+            <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              Autonomia insufficiente per raggiungere la destinazione
             </div>
-            <div className="flex gap-2">
-              <a
-                href={buildMapsUrl("google")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-95 transition"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Google Maps
-              </a>
-              <a
-                href={buildMapsUrl("apple")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-secondary text-secondary-foreground rounded-lg hover:bg-accent transition"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Apple Maps
-              </a>
+          )}
+
+          {canStart && (
+            <div className="mt-3 space-y-2">
+              <div className="text-[11px] font-medium opacity-90">Avvia navigazione con:</div>
+              <div className="flex gap-2">
+                <a
+                  href={buildMapsUrl("google")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Google Maps
+                </a>
+                <a
+                  href={buildMapsUrl("apple")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Apple Maps
+                </a>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={onDismissCompleted}
-              className="w-full text-xs text-muted-foreground hover:text-foreground transition text-center py-1"
-            >
-              Chiudi
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
