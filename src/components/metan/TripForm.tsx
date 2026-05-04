@@ -3,20 +3,22 @@ import { Crosshair, Plus, X, Loader2, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CITIES, geocodeCity } from "@/lib/metan-mock";
+import { CITIES } from "@/lib/metan-mock";
 import type { PlanRequest } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
 
 interface CityInputProps {
   value: string;
   onChange: (v: string) => void;
+  onCoordsChange?: (coords: { lat: number; lng: number } | null) => void;
   placeholder: string;
   showGeo?: boolean;
 }
 
-function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
+function CityInput({ value, onChange, onCoordsChange, placeholder, showGeo }: CityInputProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -26,10 +28,9 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const [nominatimResults, setNominatimResults] = useState<{ display: string; city: string }[]>([]);
+  const [nominatimResults, setNominatimResults] = useState<{ display: string; label: string; lat: number; lng: number }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Search Nominatim for addresses when no city match
   useEffect(() => {
     if (!value || value.length < 3) { setNominatimResults([]); return; }
     const cityMatch = CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase()));
@@ -38,11 +39,16 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&limit=5&q=${encodeURIComponent(value)}`,
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&limit=6&q=${encodeURIComponent(value)}`,
         );
         const data = await res.json();
         setNominatimResults(
-          data.map((d: any) => ({ display: d.display_name.split(",").slice(0, 3).join(","), city: d.display_name.split(",").slice(0, 2).join(",").trim() }))
+          data.map((d: any) => ({
+            display: d.display_name.split(",").slice(0, 3).join(","),
+            label: d.display_name.split(",").slice(0, 2).join(",").trim(),
+            lat: parseFloat(d.lat),
+            lng: parseFloat(d.lon),
+          }))
         );
       } catch { setNominatimResults([]); }
     }, 400);
@@ -53,6 +59,35 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
     ? CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase())).slice(0, 4)
     : [];
 
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        onCoordsChange?.({ lat: latitude, lng: longitude });
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          const label = data.address?.road
+            ? `${data.address.road}, ${data.address.city || data.address.town || data.address.village || ""}`
+            : data.display_name?.split(",").slice(0, 2).join(",").trim() || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          onChange(label);
+        } catch {
+          onChange(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }
+        setGeoLoading(false);
+      },
+      () => {
+        setGeoLoading(false);
+        alert("Impossibile ottenere la posizione. Controlla i permessi del browser.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
     <div ref={ref} className="relative">
       <div className="relative">
@@ -60,6 +95,7 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
+            onCoordsChange?.(null);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
@@ -69,11 +105,12 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
         {showGeo && (
           <button
             type="button"
-            onClick={() => onChange("Bologna")}
+            onClick={handleGeolocate}
+            disabled={geoLoading}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-primary-soft text-primary transition"
             title="Usa la mia posizione"
           >
-            <Crosshair className="h-4 w-4" />
+            {geoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
           </button>
         )}
       </div>
@@ -85,6 +122,7 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
               type="button"
               onClick={() => {
                 onChange(c);
+                onCoordsChange?.(null);
                 setOpen(false);
               }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-primary-soft transition"
@@ -100,7 +138,8 @@ function CityInput({ value, onChange, placeholder, showGeo }: CityInputProps) {
               key={i}
               type="button"
               onClick={() => {
-                onChange(r.city);
+                onChange(r.label);
+                onCoordsChange?.({ lat: r.lat, lng: r.lng });
                 setOpen(false);
               }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-primary-soft transition text-muted-foreground"
@@ -120,8 +159,10 @@ interface TripFormProps {
 }
 
 export function TripForm({ onPlan, loading }: TripFormProps) {
-  const [origin, setOrigin] = useState("Bologna");
-  const [destination, setDestination] = useState("Milano");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [waypoints, setWaypoints] = useState<string[]>([]);
   const [showWaypoints, setShowWaypoints] = useState(false);
   const [currentRange, setCurrentRange] = useState("80");
@@ -140,7 +181,9 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
       max_range_km: Number(maxRange) || 0,
       safety_margin_km: Number(safety) || 0,
       depart_at: departMode === "schedule" ? departAt : null,
-    });
+      origin_coords: originCoords ?? undefined,
+      destination_coords: destCoords ?? undefined,
+    } as any);
   };
 
   return (
@@ -167,7 +210,13 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
       <div className="space-y-3">
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground">Partenza</Label>
-          <CityInput value={origin} onChange={setOrigin} placeholder="Da dove parti?" showGeo />
+          <CityInput
+            value={origin}
+            onChange={setOrigin}
+            onCoordsChange={setOriginCoords}
+            placeholder="Città, via o indirizzo"
+            showGeo
+          />
         </div>
 
         {showWaypoints && waypoints.map((wp, i) => (
@@ -179,7 +228,7 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
               <CityInput
                 value={wp}
                 onChange={(v) => setWaypoints(waypoints.map((w, j) => (j === i ? v : w)))}
-                placeholder="Città"
+                placeholder="Città, via o indirizzo"
               />
               <button
                 type="button"
@@ -194,7 +243,12 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground">Destinazione</Label>
-          <CityInput value={destination} onChange={setDestination} placeholder="Dove vai?" />
+          <CityInput
+            value={destination}
+            onChange={setDestination}
+            onCoordsChange={setDestCoords}
+            placeholder="Città, via o indirizzo"
+          />
         </div>
 
         <button
