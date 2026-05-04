@@ -290,15 +290,32 @@ function cumulativeDistances(polyline: [number, number][]): number[] {
   return cum;
 }
 
-function resolveWaypoint(w: string | Waypoint): { point: [number, number] | null; label: string } {
+async function geocodeNominatim(query: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&limit=1&q=${encodeURIComponent(query)}`
+    );
+    const data = await res.json();
+    if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch {}
+  return null;
+}
+
+async function geocodeAny(name: string): Promise<{ lat: number; lng: number } | null> {
+  const local = geocodeCity(name);
+  if (local) return local;
+  return geocodeNominatim(name);
+}
+
+async function resolveWaypoint(w: string | Waypoint): Promise<{ point: [number, number] | null; label: string }> {
   if (typeof w === "string") {
-    const g = geocodeCity(w);
+    const g = await geocodeAny(w);
     return { point: g ? [g.lat, g.lng] : null, label: w };
   }
   if (typeof w.lat === "number" && typeof w.lng === "number") {
     return { point: [w.lat, w.lng], label: w.label };
   }
-  const g = geocodeCity(w.label);
+  const g = await geocodeAny(w.label);
   return { point: g ? [g.lat, g.lng] : null, label: w.label };
 }
 
@@ -306,7 +323,10 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const points: [number, number][] = [];
   const missing: string[] = [];
 
-  const originG = geocodeCity(req.origin);
+  // Support explicit coords from geolocation
+  const reqAny = req as any;
+  let originG: { lat: number; lng: number } | null = reqAny.origin_coords ?? null;
+  if (!originG) originG = await geocodeAny(req.origin);
   if (!originG) missing.push(req.origin);
   else points.push([originG.lat, originG.lng]);
 
@@ -314,13 +334,14 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const formWaypoints: [number, number][] = [];
   for (const w of req.waypoints) {
     if (!w) continue;
-    const { point, label } = resolveWaypoint(w);
+    const { point, label } = await resolveWaypoint(w);
     if (!point) missing.push(label);
     else formWaypoints.push(point);
   }
   points.push(...formWaypoints);
 
-  const destG = geocodeCity(req.destination);
+  let destG: { lat: number; lng: number } | null = reqAny.destination_coords ?? null;
+  if (!destG) destG = await geocodeAny(req.destination);
   if (!destG) missing.push(req.destination);
   else points.push([destG.lat, destG.lng]);
 

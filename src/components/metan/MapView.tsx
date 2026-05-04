@@ -5,9 +5,16 @@ import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
 
+function isHighwayStation(s: Station): boolean {
+  const n = s.name.toLowerCase();
+  return /\b(a\d+|autostrad|ads)\b/.test(n);
+}
+
+function isH24Station(s: Station): boolean {
+  return s.always_open;
+}
+
 const stopIcon = (number: number, highlighted = false) => {
-  // Highlighted = vivid orange/amber so the user clearly sees which stop is selected.
-  // Default = green gradient.
   const size = highlighted ? 44 : 34;
   const bg = highlighted
     ? "linear-gradient(135deg, oklch(0.72 0.19 50), oklch(0.78 0.18 65))"
@@ -32,15 +39,39 @@ const stopIcon = (number: number, highlighted = false) => {
   });
 };
 
-const grayIcon = (hover = false) => {
+const grayIcon = (station: Station, hover = false) => {
+  const highway = isHighwayStation(station);
+  const h24 = isH24Station(station);
   const size = hover ? 28 : 20;
   const inner = hover ? 10 : 7;
-  const bg = hover
-    ? "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))"
-    : "linear-gradient(135deg, oklch(0.55 0.02 250), oklch(0.65 0.02 250))";
-  const shadow = hover
-    ? "0 6px 16px rgba(22,163,74,.5)"
-    : "0 2px 6px rgba(15,23,42,.25)";
+
+  let bg: string;
+  let shadow: string;
+  if (highway) {
+    // Blue for highway stations
+    bg = hover
+      ? "linear-gradient(135deg, oklch(0.55 0.22 250), oklch(0.65 0.20 260))"
+      : "linear-gradient(135deg, oklch(0.50 0.18 250), oklch(0.58 0.16 255))";
+    shadow = hover
+      ? "0 6px 16px rgba(37,99,235,.5)"
+      : "0 2px 6px rgba(37,99,235,.3)";
+  } else if (h24) {
+    // Amber/gold for 24h automatic
+    bg = hover
+      ? "linear-gradient(135deg, oklch(0.72 0.19 85), oklch(0.78 0.17 75))"
+      : "linear-gradient(135deg, oklch(0.65 0.16 85), oklch(0.72 0.14 80))";
+    shadow = hover
+      ? "0 6px 16px rgba(217,119,6,.5)"
+      : "0 2px 6px rgba(217,119,6,.3)";
+  } else {
+    bg = hover
+      ? "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))"
+      : "linear-gradient(135deg, oklch(0.55 0.02 250), oklch(0.65 0.02 250))";
+    shadow = hover
+      ? "0 6px 16px rgba(22,163,74,.5)"
+      : "0 2px 6px rgba(15,23,42,.25)";
+  }
+
   return L.divIcon({
     className: "metan-marker metan-marker-candidate",
     html: `<div style="
@@ -106,73 +137,9 @@ interface MapViewProps {
   highlightedStopNumber: number | null;
   externalHoveredStationId?: number | null;
   onStationClick: (s: Station) => void;
-  simulating?: boolean;
-  simulationProgress?: number; // 0..1 along route polyline
 }
 
-const carIcon = () =>
-  L.divIcon({
-    className: "metan-marker metan-car",
-    html: `<div style="
-      width:36px;height:36px;border-radius:50%;
-      background:linear-gradient(135deg, oklch(0.55 0.22 25), oklch(0.65 0.20 35));
-      border:3px solid white;
-      box-shadow:0 6px 18px rgba(220,38,38,.55);
-      display:flex;align-items:center;justify-content:center;
-      transform:translate(-50%,-50%);
-      font-size:18px;
-    ">🚗</div>`,
-    iconSize: [0, 0],
-  });
-
-function interpolateOnPolyline(poly: [number, number][], t: number): [number, number] | null {
-  if (poly.length === 0) return null;
-  if (poly.length === 1) return poly[0];
-  // total length in degrees (good enough for animation)
-  const segLens: number[] = [];
-  let total = 0;
-  for (let i = 1; i < poly.length; i++) {
-    const dx = poly[i][0] - poly[i - 1][0];
-    const dy = poly[i][1] - poly[i - 1][1];
-    const l = Math.sqrt(dx * dx + dy * dy);
-    segLens.push(l);
-    total += l;
-  }
-  if (total === 0) return poly[0];
-  let target = Math.max(0, Math.min(1, t)) * total;
-  for (let i = 0; i < segLens.length; i++) {
-    if (target <= segLens[i]) {
-      const r = segLens[i] === 0 ? 0 : target / segLens[i];
-      return [
-        poly[i][0] + (poly[i + 1][0] - poly[i][0]) * r,
-        poly[i][1] + (poly[i + 1][1] - poly[i][1]) * r,
-      ];
-    }
-    target -= segLens[i];
-  }
-  return poly[poly.length - 1];
-}
-
-function FollowCar({ pos, active }: { pos: [number, number] | null; active: boolean }) {
-  const map = useMap();
-  const initRef = useRef(false);
-  useEffect(() => {
-    if (!active) {
-      initRef.current = false;
-      return;
-    }
-    if (!pos) return;
-    if (!initRef.current) {
-      initRef.current = true;
-      map.flyTo(pos, 15, { duration: 1.2 });
-    } else {
-      map.panTo(pos, { animate: true, duration: 0.6 });
-    }
-  }, [pos, active, map]);
-  return null;
-}
-
-export function MapView({ result, highlightedStopNumber, externalHoveredStationId, onStationClick, simulating, simulationProgress }: MapViewProps) {
+export function MapView({ result, highlightedStopNumber, externalHoveredStationId, onStationClick }: MapViewProps) {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState<number>(7);
   const [internalHoveredId, setInternalHoveredId] = useState<number | null>(null);
@@ -184,8 +151,6 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     [result],
   );
 
-  // When a route is planned, always show the route's candidate stations (already filtered to detour ≤ 8km).
-  // Without a route, show stations within current viewport at any zoom (capped to avoid 1604 markers at once).
   const visibleStations = useMemo(() => {
     if (result && result.candidates.length > 0) {
       return result.candidates.map((c) => c.station);
@@ -200,11 +165,6 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     }
     return out;
   }, [bounds, zoom, recommendedIds, result]);
-
-  const carPos = useMemo(() => {
-    if (!simulating || !result || result.route.polyline.length === 0) return null;
-    return interpolateOnPolyline(result.route.polyline, simulationProgress ?? 0);
-  }, [simulating, simulationProgress, result]);
 
   return (
     <MapContainer
@@ -241,7 +201,7 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         <Marker
           key={s.id}
           position={[s.lat, s.lng]}
-          icon={grayIcon(hoveredStationId === s.id)}
+          icon={grayIcon(s, hoveredStationId === s.id)}
           eventHandlers={{
             click: () => onStationClick(s),
             mouseover: () => setHoveredStationId(s.id),
@@ -259,13 +219,8 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         />
       ))}
 
-      {carPos && (
-        <Marker position={carPos} icon={carIcon()} />
-      )}
-
       <FitBounds result={result} />
-      {!simulating && <FlyToStop result={result} stopNumber={highlightedStopNumber} />}
-      <FollowCar pos={carPos} active={!!simulating} />
+      <FlyToStop result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>
   );
 }
