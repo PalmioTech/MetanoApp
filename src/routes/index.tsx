@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
@@ -36,50 +36,6 @@ function HomePage() {
   const [forcedStationIds, setForcedStationIds] = useState<number[]>([]);
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
   const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
-  const [simulating, setSimulating] = useState(false);
-  const [simProgress, setSimProgress] = useState(0);
-  const [simCompleted, setSimCompleted] = useState(false);
-  const rafRef = useRef<number | null>(null);
-
-  // Simulation loop: drive progress from 0 to 1 over ~30s for visual effect
-  useEffect(() => {
-    if (!simulating) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      return;
-    }
-    const DURATION_MS = 30000;
-    const start = performance.now() - simProgress * DURATION_MS;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / DURATION_MS);
-      setSimProgress(t);
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        setSimulating(false);
-        setSimCompleted(true);
-        setDrawerOpen(true);
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simulating]);
-
-  const handleStartSim = () => {
-    setSimProgress(0);
-    setHighlighted(null);
-    setSimulating(true);
-    setSimCompleted(false);
-    setDrawerOpen(false);
-  };
-
-  const handleStopSim = () => {
-    setSimulating(false);
-    setSimProgress(0);
-    setSimCompleted(false);
-  };
 
   const runPlan = async (req: PlanRequest) => {
     setLoading(true);
@@ -112,6 +68,8 @@ function HomePage() {
     setForcedStationIds(next);
     setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: next, excluded_station_ids: excludedStationIds });
+    // On mobile, collapse drawer to show the map with the new stop
+    if (window.innerWidth < 768) setDrawerOpen(false);
   };
 
   const handleSwapStation = async (oldId: number, newId: number) => {
@@ -142,8 +100,6 @@ function HomePage() {
           highlightedStopNumber={highlighted}
           externalHoveredStationId={hoveredAltId}
           onStationClick={setSelectedStation}
-          simulating={simulating}
-          simulationProgress={simProgress}
         />
       </Suspense>
 
@@ -151,11 +107,8 @@ function HomePage() {
       <div
         className={cn(
           "absolute z-[1000] transition-all duration-300",
-          // Desktop
           "md:top-4 md:left-4 md:bottom-4 md:w-[380px]",
-          // Mobile when planning
           !result && "top-0 left-0 right-0 bottom-0 md:bottom-4",
-          // Mobile after result: collapsed to a chip
           result && formCollapsed && "hidden md:block",
           formCollapsed && "md:opacity-0 md:pointer-events-none md:-translate-x-4"
         )}
@@ -181,9 +134,7 @@ function HomePage() {
         <div
           className={cn(
             "absolute z-[1000] transition-all duration-300 ease-out",
-            // Desktop: bottom-right floating panel
             "md:bottom-4 md:right-4 md:w-[420px] md:max-h-[calc(100vh-2rem)] md:rounded-2xl",
-            // Mobile: bottom sheet
             "left-0 right-0 bottom-0 md:left-auto",
             drawerOpen
               ? "h-[80vh] md:h-[calc(100vh-2rem)]"
@@ -191,7 +142,6 @@ function HomePage() {
           )}
         >
           <div className="bg-card border border-border md:rounded-2xl rounded-t-3xl shadow-[var(--shadow-panel)] overflow-hidden h-full flex flex-col">
-            {/* Mobile drag handle / collapse */}
             <button
               onClick={() => setDrawerOpen(!drawerOpen)}
               className="md:hidden flex flex-col items-center justify-center py-2 border-b border-border"
@@ -223,11 +173,6 @@ function HomePage() {
                 onRemoveStation={handleRemoveStation}
                 onAlternativeHover={setHoveredAltId}
                 forcedStationIds={forcedStationIds}
-                simulating={simulating}
-                simCompleted={simCompleted}
-                onStartSimulation={handleStartSim}
-                onStopSimulation={handleStopSim}
-                onDismissCompleted={() => setSimCompleted(false)}
                 origin={lastReq?.origin ?? ""}
                 destination={lastReq?.destination ?? ""}
               />
