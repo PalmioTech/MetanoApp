@@ -134,12 +134,16 @@ function StopCard({
           </div>
 
           <div className="flex items-center gap-3 mt-2.5 text-xs flex-wrap">
+            <span className="text-primary font-semibold flex items-center gap-1">
+              <Navigation className="h-3 w-3" />
+              {stop.km_from_prev} km {stop.stop_number === 1 ? "dalla partenza" : "dalla sosta precedente"}
+            </span>
             {stop.station.price && (
               <span className="font-semibold text-foreground">
                 € {stop.station.price.toFixed(3)}/kg
               </span>
             )}
-            <span className="text-muted-foreground">+{stop.detour_km} km</span>
+            <span className="text-muted-foreground">+{stop.detour_km} km deviazione</span>
             <span className="text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {stop.eta_label.replace("Arrivo stimato: ", "")}
@@ -161,27 +165,12 @@ function StopCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (isAdded) onRemove();
-                else onAdd();
+                onRemove();
               }}
-              className={cn(
-                "flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg transition",
-                isAdded
-                  ? "bg-destructive/10 text-destructive border border-destructive/40 hover:bg-destructive/20"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              )}
+              className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg transition bg-destructive/10 text-destructive border border-destructive/40 hover:bg-destructive/20"
             >
-              {isAdded ? (
-                <>
-                  <X className="h-3.5 w-3.5" />
-                  Rimuovi tappa
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3.5 w-3.5" />
-                  Aggiungi tappa
-                </>
-              )}
+              <X className="h-3.5 w-3.5" />
+              Rimuovi sosta
             </button>
           </div>
 
