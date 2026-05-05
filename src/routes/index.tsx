@@ -84,8 +84,9 @@ function HomePage() {
 
   const handleRemoveStation = async (stationId: number) => {
     if (!lastReq) return;
+    // Remove from forced AND add to excluded so algorithm skips it
     const nextForced = forcedStationIds.filter((id) => id !== stationId);
-    const nextExcluded = [...excludedStationIds.filter((id) => id !== stationId), stationId];
+    const nextExcluded = [...excludedStationIds, stationId];
     setForcedStationIds(nextForced);
     setExcludedStationIds(nextExcluded);
     setHighlighted(null);

@@ -100,10 +100,17 @@ const pinIcon = (color: string) =>
 
 function FitBounds({ result }: { result: PlanResult | null }) {
   const map = useMap();
+  const prevPolylineRef = useRef<string>("");
   useEffect(() => {
     if (!result || result.route.polyline.length === 0) return;
+    // Only fit when the polyline actually changes (new route)
+    const key = result.route.polyline.length + "-" + result.route.polyline[0]?.[0] + "-" + result.route.polyline[result.route.polyline.length - 1]?.[0];
+    if (key === prevPolylineRef.current) return;
+    prevPolylineRef.current = key;
     const bounds = L.latLngBounds(result.route.polyline);
-    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 11 });
+    // Add stop positions to bounds for complete visibility
+    result.stops.forEach((s) => bounds.extend([s.station.lat, s.station.lng]));
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
   }, [result, map]);
   return null;
 }
