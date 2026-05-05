@@ -84,12 +84,12 @@ function HomePage() {
 
   const handleRemoveStation = async (stationId: number) => {
     if (!lastReq) return;
-    const next = forcedStationIds.filter((id) => id !== stationId);
-    const nextExcluded = excludedStationIds.filter((id) => id !== stationId);
-    setForcedStationIds(next);
+    const nextForced = forcedStationIds.filter((id) => id !== stationId);
+    const nextExcluded = [...excludedStationIds.filter((id) => id !== stationId), stationId];
+    setForcedStationIds(nextForced);
     setExcludedStationIds(nextExcluded);
     setHighlighted(null);
-    await runPlan({ ...lastReq, forced_station_ids: next, excluded_station_ids: nextExcluded });
+    await runPlan({ ...lastReq, forced_station_ids: nextForced, excluded_station_ids: nextExcluded });
   };
 
   return (
