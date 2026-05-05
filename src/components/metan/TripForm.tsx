@@ -340,8 +340,8 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
 
       <Button
         type="submit"
-        disabled={loading}
-        className="w-full h-12 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow hover:opacity-95 shadow-md"
+        disabled={loading || !origin.trim() || !destination.trim()}
+        className="w-full h-12 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow hover:opacity-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
           <>

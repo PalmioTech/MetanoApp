@@ -234,7 +234,12 @@ export function ResultsPanel({
       const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
       return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints}&travelmode=driving`;
     }
-    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
+    // Apple Maps: chain stops as waypoints using +to: syntax
+    const appleStops = stops.map((s) => encodeURIComponent(s)).join("+to:");
+    const appleRoute = appleStops
+      ? `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${appleStops}+to:${encodeURIComponent(destination)}`
+      : `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
+    return appleRoute;
   };
 
   return (
