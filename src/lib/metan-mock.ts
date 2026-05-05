@@ -223,19 +223,19 @@ function pickStops(
       break;
     }
 
-    // Among reachable candidates in the last 25 km of reach, prefer OPEN first, then cheapest.
+    // Among reachable candidates in the last 25 km of reach, prefer OPEN first, then least detour (closest to route).
     const minCum = bestCum - 25;
     let chosen = -1;
-    let chosenScore: [number, number] = [2, Infinity]; // [closedRank (0=open,1=unknown,2=closed), price]
+    let chosenScore: [number, number] = [2, Infinity]; // [closedRank (0=open,1=unknown,2=closed), detourKm]
     for (let i = lastIdx + 1; i <= bestIdx; i++) {
       const c = candidates[i];
       if (c.cumKm < minCum) continue;
       const open = isStationOpenAt(c.station, etaAt(c.cumKm));
       const openRank = open === true ? 0 : open === null ? 1 : 2;
-      const price = c.station.price ?? Infinity;
-      if (openRank < chosenScore[0] || (openRank === chosenScore[0] && price < chosenScore[1])) {
+      const detour = c.detourKm;
+      if (openRank < chosenScore[0] || (openRank === chosenScore[0] && detour < chosenScore[1])) {
         chosen = i;
-        chosenScore = [openRank, price];
+        chosenScore = [openRank, detour];
       }
     }
     if (chosen === -1) chosen = bestIdx;
