@@ -134,12 +134,16 @@ function StopCard({
           </div>
 
           <div className="flex items-center gap-3 mt-2.5 text-xs flex-wrap">
+            <span className="text-primary font-semibold flex items-center gap-1">
+              <Navigation className="h-3 w-3" />
+              {stop.km_from_prev} km {stop.stop_number === 1 ? "dalla partenza" : "dalla sosta precedente"}
+            </span>
             {stop.station.price && (
               <span className="font-semibold text-foreground">
                 € {stop.station.price.toFixed(3)}/kg
               </span>
             )}
-            <span className="text-muted-foreground">+{stop.detour_km} km</span>
+            <span className="text-muted-foreground">+{stop.detour_km} km deviazione</span>
             <span className="text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {stop.eta_label.replace("Arrivo stimato: ", "")}
