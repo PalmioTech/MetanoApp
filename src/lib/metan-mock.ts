@@ -439,6 +439,9 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     const eta = new Date(startTime.getTime() + minutes * 60_000);
     const etaStr = eta.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
+    const prevCum = i > 0 ? picked[i - 1].cumKm : 0;
+    const kmFromPrev = Math.round(c.cumKm - prevCum);
+
     // Alternatives: candidates near same cumKm (within ±40 km), not already picked.
     // Sort by detour (least extra distance first). Recommended = closest to route.
     const pool = candidatesAll
@@ -461,6 +464,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       eta_label: `Arrivo stimato: ${etaStr}`,
       eta_iso: eta.toISOString(),
       detour_km: c.detourKm,
+      km_from_prev: kmFromPrev,
       alternatives: alts,
       is_user_added: forcedSet.has(c.station.id),
     };

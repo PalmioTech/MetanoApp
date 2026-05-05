@@ -34,6 +34,7 @@ export type Stop = {
   eta_label: string;
   eta_iso: string;
   detour_km: number;
+  km_from_prev: number; // km from origin (if first) or from previous stop
   alternatives: StopAlternative[];
   is_user_added?: boolean;
 };
