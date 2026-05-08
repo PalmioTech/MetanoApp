@@ -7,6 +7,7 @@ import { StationSheet } from "@/components/metan/StationSheet";
 import { mockPlan } from "@/lib/metan-mock";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
+import { Fuel } from "lucide-react";
 
 const MapView = lazy(() =>
   import("@/components/metan/MapView").then((m) => ({ default: m.MapView }))
