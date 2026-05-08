@@ -7,6 +7,7 @@ import { StationSheet } from "@/components/metan/StationSheet";
 import { mockPlan } from "@/lib/metan-mock";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
+import { Fuel } from "lucide-react";
 
 const MapView = lazy(() =>
   import("@/components/metan/MapView").then((m) => ({ default: m.MapView }))
@@ -103,6 +104,25 @@ function HomePage() {
           onStationClick={setSelectedStation}
         />
       </Suspense>
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-card border border-border shadow-[var(--shadow-panel)]">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Fuel className="h-6 w-6 text-primary animate-pulse" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-foreground">Calcolo percorso...</p>
+              <p className="text-xs text-muted-foreground mt-1">Cerco le migliori stazioni CNG</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating left panel (desktop) — also acts as full sheet on mobile when no result */}
       <div
