@@ -87,6 +87,24 @@ const grayIcon = (station: Station, hover = false) => {
   });
 };
 
+const altIcon = (hover = false) => {
+  const size = hover ? 32 : 26;
+  const inner = hover ? 12 : 9;
+  return L.divIcon({
+    className: "metan-marker metan-marker-alt",
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:linear-gradient(135deg, oklch(0.72 0.19 50), oklch(0.78 0.18 65));
+      border:3px solid white;
+      box-shadow:0 4px 14px rgba(234,88,12,.55);
+      display:flex;align-items:center;justify-content:center;
+      transform:translate(-50%,-50%);
+      transition:all .15s ease;cursor:pointer;
+    "><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:white;opacity:.95;"></div></div>`,
+    iconSize: [0, 0],
+  });
+};
+
 const pinIcon = (color: string) =>
   L.divIcon({
     className: "metan-marker",
@@ -115,17 +133,7 @@ function FitBounds({ result }: { result: PlanResult | null }) {
   return null;
 }
 
-function FlyToStop({ result, stopNumber }: { result: PlanResult | null; stopNumber: number | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (stopNumber == null || !result) return;
-    const stop = result.stops.find((s) => s.stop_number === stopNumber);
-    if (!stop) return;
-    const targetZoom = Math.max(map.getZoom(), 13);
-    map.flyTo([stop.station.lat, stop.station.lng], targetZoom, { duration: 0.6 });
-  }, [stopNumber, result, map]);
-  return null;
-}
+// FlyToStop removed — hovering a stop card no longer recenters the map.
 
 function ViewportTracker({ onChange }: { onChange: (b: L.LatLngBounds, zoom: number) => void }) {
   const map = useMapEvents({
@@ -158,20 +166,34 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     [result],
   );
 
+  const highlightedAlternatives = useMemo(() => {
+    if (!result || highlightedStopNumber == null) return [];
+    const stop = result.stops.find((s) => s.stop_number === highlightedStopNumber);
+    return stop?.alternatives ?? [];
+  }, [result, highlightedStopNumber]);
+
+  const highlightedAltIds = useMemo(
+    () => new Set(highlightedAlternatives.map((a) => a.station.id)),
+    [highlightedAlternatives],
+  );
+
   const visibleStations = useMemo(() => {
     if (result && result.candidates.length > 0) {
-      return result.candidates.map((c) => c.station);
+      return result.candidates
+        .map((c) => c.station)
+        .filter((s) => !highlightedAltIds.has(s.id));
     }
     if (!bounds) return [];
     const out: Station[] = [];
     for (const s of ALL_STATIONS) {
       if (recommendedIds.has(s.id)) continue;
+      if (highlightedAltIds.has(s.id)) continue;
       if (bounds.contains([s.lat, s.lng])) {
         out.push(s);
       }
     }
     return out;
-  }, [bounds, zoom, recommendedIds, result]);
+  }, [bounds, zoom, recommendedIds, result, highlightedAltIds]);
 
   return (
     <MapContainer
@@ -217,6 +239,19 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         />
       ))}
 
+      {highlightedAlternatives.map((alt) => (
+        <Marker
+          key={`alt-${alt.station.id}`}
+          position={[alt.station.lat, alt.station.lng]}
+          icon={altIcon(hoveredStationId === alt.station.id)}
+          eventHandlers={{
+            click: () => onStationClick(alt.station),
+            mouseover: () => setHoveredStationId(alt.station.id),
+            mouseout: () => setHoveredStationId((id) => (id === alt.station.id ? null : id)),
+          }}
+        />
+      ))}
+
       {result?.stops.map((stop) => (
         <Marker
           key={`${stop.station.id}-${highlightedStopNumber === stop.stop_number ? "h" : "n"}`}
@@ -227,7 +262,6 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
       ))}
 
       <FitBounds result={result} />
-      <FlyToStop result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>
   );
 }

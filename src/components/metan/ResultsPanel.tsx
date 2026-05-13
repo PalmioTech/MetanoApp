@@ -229,16 +229,21 @@ export function ResultsPanel({
   const canStart = remaining >= margin;
 
   const buildMapsUrl = (provider: "google" | "apple") => {
+    const poly = result.route.polyline;
+    const originCoord = poly.length > 0 ? `${poly[0][0]},${poly[0][1]}` : null;
+    const destCoord = poly.length > 0 ? `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}` : null;
+    const originParam = originCoord ?? origin;
+    const destParam = destCoord ?? destination;
     const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
     if (provider === "google") {
       const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
-      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints}&travelmode=driving`;
+      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
     }
     // Apple Maps: chain stops as waypoints using +to: syntax
     const appleStops = stops.map((s) => encodeURIComponent(s)).join("+to:");
     const appleRoute = appleStops
-      ? `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${appleStops}+to:${encodeURIComponent(destination)}`
-      : `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`;
+      ? `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${appleStops}+to:${encodeURIComponent(destParam)}`
+      : `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${encodeURIComponent(destParam)}`;
     return appleRoute;
   };
 
@@ -276,7 +281,7 @@ export function ResultsPanel({
       </div>
 
       {/* Scrollable stop list */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4 pb-24 md:pb-6 space-y-3">
         {result.warnings.length > 0 && (
           <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 flex gap-2.5 text-xs">
             <AlertTriangle className="h-4 w-4 text-warning-foreground flex-shrink-0 mt-0.5" />
