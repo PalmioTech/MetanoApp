@@ -281,7 +281,7 @@ export function ResultsPanel({
       </div>
 
       {/* Scrollable stop list */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4 pb-24 md:pb-6 space-y-3">
         {result.warnings.length > 0 && (
           <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 flex gap-2.5 text-xs">
             <AlertTriangle className="h-4 w-4 text-warning-foreground flex-shrink-0 mt-0.5" />
