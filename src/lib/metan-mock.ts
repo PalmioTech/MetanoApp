@@ -145,6 +145,31 @@ type Candidate = {
 
 const MAX_DETOUR_KM = 8;
 
+// Highway carriageway side -> traffic direction it serves.
+// "ovest" / "nord" carriageways carry NORTHBOUND traffic.
+// "est"  / "sud"  carriageways carry SOUTHBOUND traffic.
+function isHighwayStationName(name: string): boolean {
+  const n = name.toLowerCase();
+  return /\b(a\d+|autostrad|ads)\b/.test(n);
+}
+
+function highwayServesDirection(s: Station): "north" | "south" | null {
+  if (!isHighwayStationName(s.name)) return null;
+  const n = s.name.toLowerCase();
+  if (/\b(ovest|nord)\b/.test(n)) return "north";
+  if (/\b(est|sud)\b/.test(n)) return "south";
+  return null;
+}
+
+function travelDirectionNS(origin: [number, number], dest: [number, number]): "north" | "south" | null {
+  const dLat = dest[0] - origin[0];
+  const dLng = dest[1] - origin[1];
+  // Only apply when the trip is meaningfully north/south (lat change comparable to lng change)
+  if (Math.abs(dLat) < Math.abs(dLng) * 0.5) return null;
+  if (Math.abs(dLat) < 0.5) return null; // very short trip, skip
+  return dLat > 0 ? "north" : "south";
+}
+
 function candidatesAlongRoute(polyline: [number, number][], cumulative: number[]): Candidate[] {
   const out: Candidate[] = [];
   for (const s of ALL_STATIONS) {
@@ -413,7 +438,16 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
 
   const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
-  const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter(c => !excludedSet.has(c.station.id));
+  const tripDir = travelDirectionNS(points[0], points[points.length - 1]);
+  const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter((c) => {
+    if (excludedSet.has(c.station.id)) return false;
+    // Always allow forced stations regardless of direction
+    if ((req.forced_station_ids ?? []).includes(c.station.id)) return true;
+    if (!tripDir) return true;
+    const sd = highwayServesDirection(c.station);
+    if (sd && sd !== tripDir) return false;
+    return true;
+  });
 
   // forcedSet was already computed above (used for routing waypoints)
 
