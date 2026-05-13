@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
+import { CITIES } from "@/lib/metan-mock";
 import { cn } from "@/lib/utils";
 
 interface ResultsPanelProps {
