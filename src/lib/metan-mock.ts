@@ -448,7 +448,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       .filter((cand) => !pickedIds.has(cand.station.id))
       .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
       .sort((a, b) => a.detourKm - b.detourKm)
-      .slice(0, 6)
+      .slice(0, 3)
       .map((cand) => ({
         station: cand.station,
         detour_km: cand.detourKm,
