@@ -87,6 +87,24 @@ const grayIcon = (station: Station, hover = false) => {
   });
 };
 
+const altIcon = (hover = false) => {
+  const size = hover ? 32 : 26;
+  const inner = hover ? 12 : 9;
+  return L.divIcon({
+    className: "metan-marker metan-marker-alt",
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:linear-gradient(135deg, oklch(0.72 0.19 50), oklch(0.78 0.18 65));
+      border:3px solid white;
+      box-shadow:0 4px 14px rgba(234,88,12,.55);
+      display:flex;align-items:center;justify-content:center;
+      transform:translate(-50%,-50%);
+      transition:all .15s ease;cursor:pointer;
+    "><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:white;opacity:.95;"></div></div>`,
+    iconSize: [0, 0],
+  });
+};
+
 const pinIcon = (color: string) =>
   L.divIcon({
     className: "metan-marker",
