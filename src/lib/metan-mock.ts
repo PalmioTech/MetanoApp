@@ -145,6 +145,31 @@ type Candidate = {
 
 const MAX_DETOUR_KM = 8;
 
+// Highway carriageway side -> traffic direction it serves.
+// "ovest" / "nord" carriageways carry NORTHBOUND traffic.
+// "est"  / "sud"  carriageways carry SOUTHBOUND traffic.
+function isHighwayStationName(name: string): boolean {
+  const n = name.toLowerCase();
+  return /\b(a\d+|autostrad|ads)\b/.test(n);
+}
+
+function highwayServesDirection(s: Station): "north" | "south" | null {
+  if (!isHighwayStationName(s.name)) return null;
+  const n = s.name.toLowerCase();
+  if (/\b(ovest|nord)\b/.test(n)) return "north";
+  if (/\b(est|sud)\b/.test(n)) return "south";
+  return null;
+}
+
+function travelDirectionNS(origin: [number, number], dest: [number, number]): "north" | "south" | null {
+  const dLat = dest[0] - origin[0];
+  const dLng = dest[1] - origin[1];
+  // Only apply when the trip is meaningfully north/south (lat change comparable to lng change)
+  if (Math.abs(dLat) < Math.abs(dLng) * 0.5) return null;
+  if (Math.abs(dLat) < 0.5) return null; // very short trip, skip
+  return dLat > 0 ? "north" : "south";
+}
+
 function candidatesAlongRoute(polyline: [number, number][], cumulative: number[]): Candidate[] {
   const out: Candidate[] = [];
   for (const s of ALL_STATIONS) {
