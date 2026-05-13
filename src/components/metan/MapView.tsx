@@ -148,20 +148,34 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     [result],
   );
 
+  const highlightedAlternatives = useMemo(() => {
+    if (!result || highlightedStopNumber == null) return [];
+    const stop = result.stops.find((s) => s.stop_number === highlightedStopNumber);
+    return stop?.alternatives ?? [];
+  }, [result, highlightedStopNumber]);
+
+  const highlightedAltIds = useMemo(
+    () => new Set(highlightedAlternatives.map((a) => a.station.id)),
+    [highlightedAlternatives],
+  );
+
   const visibleStations = useMemo(() => {
     if (result && result.candidates.length > 0) {
-      return result.candidates.map((c) => c.station);
+      return result.candidates
+        .map((c) => c.station)
+        .filter((s) => !highlightedAltIds.has(s.id));
     }
     if (!bounds) return [];
     const out: Station[] = [];
     for (const s of ALL_STATIONS) {
       if (recommendedIds.has(s.id)) continue;
+      if (highlightedAltIds.has(s.id)) continue;
       if (bounds.contains([s.lat, s.lng])) {
         out.push(s);
       }
     }
     return out;
-  }, [bounds, zoom, recommendedIds, result]);
+  }, [bounds, zoom, recommendedIds, result, highlightedAltIds]);
 
   return (
     <MapContainer
@@ -207,6 +221,19 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         />
       ))}
 
+      {highlightedAlternatives.map((alt) => (
+        <Marker
+          key={`alt-${alt.station.id}`}
+          position={[alt.station.lat, alt.station.lng]}
+          icon={altIcon(hoveredStationId === alt.station.id)}
+          eventHandlers={{
+            click: () => onStationClick(alt.station),
+            mouseover: () => setHoveredStationId(alt.station.id),
+            mouseout: () => setHoveredStationId((id) => (id === alt.station.id ? null : id)),
+          }}
+        />
+      ))}
+
       {result?.stops.map((stop) => (
         <Marker
           key={`${stop.station.id}-${highlightedStopNumber === stop.stop_number ? "h" : "n"}`}
@@ -217,7 +244,6 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
       ))}
 
       <FitBounds result={result} />
-      <FlyToStop result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>
   );
 }
