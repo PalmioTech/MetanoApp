@@ -301,20 +301,24 @@ export function ResultsPanel({
           </div>
         )}
 
-        {result.stops.map((stop) => (
-          <StopCard
-            key={stop.stop_number}
-            stop={stop}
-            highlighted={highlightedStopNumber === stop.stop_number}
-            onHover={() => onHighlight(stop.stop_number)}
-            onLeave={() => onHighlight(null)}
-            onAdd={() => onAddStation(stop.station.id)}
-            onRemove={() => onRemoveStation(stop.station.id)}
-            onSwap={(newId) => onSwapStation(stop.station.id, newId)}
-            onAlternativeHover={onAlternativeHover}
-            isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
-          />
-        ))}
+        {result.stops.map((stop) => {
+          const isPinned = highlightedStopNumber === stop.stop_number;
+          return (
+            <StopCard
+              key={stop.stop_number}
+              stop={stop}
+              highlighted={isPinned}
+              onHover={() => { if (highlightedStopNumber == null) onHighlight(stop.stop_number); }}
+              onLeave={() => { /* sticky: clear only via click */ }}
+              onClick={() => onHighlight(isPinned ? null : stop.stop_number)}
+              onAdd={() => onAddStation(stop.station.id)}
+              onRemove={() => onRemoveStation(stop.station.id)}
+              onSwap={(newId) => onSwapStation(stop.station.id, newId)}
+              onAlternativeHover={onAlternativeHover}
+              isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
+            />
+          );
+        })}
 
         {/* Arrival card with navigation buttons */}
         <div className={cn(
