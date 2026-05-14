@@ -78,6 +78,7 @@ function StopCard({
   highlighted,
   onHover,
   onLeave,
+  onClick,
   onAdd,
   onRemove,
   onSwap,
@@ -88,6 +89,7 @@ function StopCard({
   highlighted: boolean;
   onHover: () => void;
   onLeave: () => void;
+  onClick: () => void;
   onAdd: () => void;
   onRemove: () => void;
   onSwap: (newId: number) => void;
@@ -100,13 +102,14 @@ function StopCard({
     <div
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
+      onClick={onClick}
       className={cn(
-        "bg-card border border-border rounded-xl p-4 border-l-4 transition-all",
+        "bg-card border border-border rounded-xl p-4 border-l-4 transition-all cursor-pointer",
         borderColor(stop.is_open_at_eta),
         highlighted ? "shadow-md ring-2 ring-primary/30 -translate-y-0.5" : "hover:shadow-md"
       )}
     >
-      <div className="flex gap-3" onClick={onHover}>
+      <div className="flex gap-3">
         <div className="flex-shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary-glow text-primary-foreground font-bold text-sm flex items-center justify-center shadow-sm">
           {stop.stop_number}
         </div>
@@ -301,20 +304,24 @@ export function ResultsPanel({
           </div>
         )}
 
-        {result.stops.map((stop) => (
-          <StopCard
-            key={stop.stop_number}
-            stop={stop}
-            highlighted={highlightedStopNumber === stop.stop_number}
-            onHover={() => onHighlight(stop.stop_number)}
-            onLeave={() => onHighlight(null)}
-            onAdd={() => onAddStation(stop.station.id)}
-            onRemove={() => onRemoveStation(stop.station.id)}
-            onSwap={(newId) => onSwapStation(stop.station.id, newId)}
-            onAlternativeHover={onAlternativeHover}
-            isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
-          />
-        ))}
+        {result.stops.map((stop) => {
+          const isPinned = highlightedStopNumber === stop.stop_number;
+          return (
+            <StopCard
+              key={stop.stop_number}
+              stop={stop}
+              highlighted={isPinned}
+              onHover={() => { if (highlightedStopNumber == null) onHighlight(stop.stop_number); }}
+              onLeave={() => { /* sticky: clear only via click */ }}
+              onClick={() => onHighlight(isPinned ? null : stop.stop_number)}
+              onAdd={() => onAddStation(stop.station.id)}
+              onRemove={() => onRemoveStation(stop.station.id)}
+              onSwap={(newId) => onSwapStation(stop.station.id, newId)}
+              onAlternativeHover={onAlternativeHover}
+              isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
+            />
+          );
+        })}
 
         {/* Arrival card with navigation buttons */}
         <div className={cn(
