@@ -133,7 +133,29 @@ function FitBounds({ result }: { result: PlanResult | null }) {
   return null;
 }
 
-// FlyToStop removed — hovering a stop card no longer recenters the map.
+function FitToStopAlternatives({
+  result,
+  stopNumber,
+}: {
+  result: PlanResult | null;
+  stopNumber: number | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!result || stopNumber == null) return;
+    const stop = result.stops.find((s) => s.stop_number === stopNumber);
+    if (!stop) return;
+    const points: [number, number][] = [[stop.station.lat, stop.station.lng]];
+    stop.alternatives.forEach((a) => points.push([a.station.lat, a.station.lng]));
+    if (points.length === 1) {
+      map.setView(points[0], Math.max(map.getZoom(), 12), { animate: true });
+      return;
+    }
+    const b = L.latLngBounds(points);
+    map.fitBounds(b, { padding: [80, 80], maxZoom: 13, animate: true });
+  }, [result, stopNumber, map]);
+  return null;
+}
 
 function ViewportTracker({ onChange }: { onChange: (b: L.LatLngBounds, zoom: number) => void }) {
   const map = useMapEvents({
