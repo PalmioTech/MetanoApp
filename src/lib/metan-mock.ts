@@ -443,14 +443,14 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
 
   const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
-  const tripDir = travelDirectionNS(points[0], points[points.length - 1]);
   const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter((c) => {
     if (excludedSet.has(c.station.id)) return false;
     // Always allow forced stations regardless of direction
     if ((req.forced_station_ids ?? []).includes(c.station.id)) return true;
-    if (!tripDir) return true;
     const sd = highwayServesDirection(c.station);
-    if (sd && sd !== tripDir) return false;
+    // If station's carriageway has a direction and the route is locally N/S,
+    // exclude when the carriageway serves the opposite direction.
+    if (sd && c.localDir !== "ew" && sd !== c.localDir) return false;
     return true;
   });
 
