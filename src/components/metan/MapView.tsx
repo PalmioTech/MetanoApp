@@ -284,6 +284,7 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
       ))}
 
       <FitBounds result={result} />
+      <FitToStopAlternatives result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>
   );
 }
