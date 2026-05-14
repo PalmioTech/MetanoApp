@@ -178,13 +178,16 @@ function candidatesAlongRoute(polyline: [number, number][], cumulative: number[]
       }
     }
     if (best.dist <= MAX_DETOUR_KM) {
-      // Determine local route direction over a small window around the projection (~10 km)
-      const a = polyline[Math.max(0, best.segIdx - 3)];
-      const b = polyline[Math.min(polyline.length - 1, best.segIdx + 4)];
+      // Local route direction over a wider window (~40-60 km) to smooth out curves.
+      // We look at the average bearing across a chunk of polyline around the projection.
+      const span = Math.max(15, Math.floor(polyline.length / 30));
+      const a = polyline[Math.max(0, best.segIdx - span)];
+      const b = polyline[Math.min(polyline.length - 1, best.segIdx + span + 1)];
       const dLat = b[0] - a[0];
       const dLng = b[1] - a[1];
       let localDir: "north" | "south" | "ew" = "ew";
-      if (Math.abs(dLat) >= Math.abs(dLng) * 0.6) {
+      // Consider it N/S if vertical movement is at least ~40% of horizontal
+      if (Math.abs(dLat) >= Math.abs(dLng) * 0.4) {
         localDir = dLat > 0 ? "north" : "south";
       }
       out.push({ station: s, cumKm: best.cumKm, detourKm: Math.round(best.dist * 10) / 10, localDir });
