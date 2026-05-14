@@ -141,13 +141,16 @@ type Candidate = {
   station: Station;
   cumKm: number;     // distance along route to closest projection
   detourKm: number;  // perpendicular distance to route
+  localDir: "north" | "south" | "ew"; // local route direction at projection
 };
 
 const MAX_DETOUR_KM = 8;
 
 // Highway carriageway side -> traffic direction it serves.
-// "ovest" / "nord" carriageways carry NORTHBOUND traffic.
-// "est"  / "sud"  carriageways carry SOUTHBOUND traffic.
+// In Italy traffic drives on the right, so on a roughly N-S highway:
+//   - the WEST carriageway ("Ovest") serves SOUTHBOUND traffic
+//   - the EAST carriageway ("Est")  serves NORTHBOUND traffic
+// "Nord" / "Sud" naming usually refers to the direction the carriageway heads.
 function isHighwayStationName(name: string): boolean {
   const n = name.toLowerCase();
   return /\b(a\d+|autostrad|ads)\b/.test(n);
@@ -156,33 +159,35 @@ function isHighwayStationName(name: string): boolean {
 function highwayServesDirection(s: Station): "north" | "south" | null {
   if (!isHighwayStationName(s.name)) return null;
   const n = s.name.toLowerCase();
-  if (/\b(ovest|nord)\b/.test(n)) return "north";
-  if (/\b(est|sud)\b/.test(n)) return "south";
+  if (/\bnord\b/.test(n)) return "north";
+  if (/\bsud\b/.test(n)) return "south";
+  if (/\bovest\b/.test(n)) return "south";
+  if (/\best\b/.test(n)) return "north";
   return null;
-}
-
-function travelDirectionNS(origin: [number, number], dest: [number, number]): "north" | "south" | null {
-  const dLat = dest[0] - origin[0];
-  const dLng = dest[1] - origin[1];
-  // Only apply when the trip is meaningfully north/south (lat change comparable to lng change)
-  if (Math.abs(dLat) < Math.abs(dLng) * 0.5) return null;
-  if (Math.abs(dLat) < 0.5) return null; // very short trip, skip
-  return dLat > 0 ? "north" : "south";
 }
 
 function candidatesAlongRoute(polyline: [number, number][], cumulative: number[]): Candidate[] {
   const out: Candidate[] = [];
   for (const s of ALL_STATIONS) {
-    let best = { dist: Infinity, cumKm: 0 };
+    let best = { dist: Infinity, cumKm: 0, segIdx: 0 };
     for (let i = 0; i < polyline.length - 1; i++) {
       const seg = pointToSegmentKm([s.lat, s.lng], polyline[i], polyline[i + 1]);
       if (seg.dist < best.dist) {
         const segLen = cumulative[i + 1] - cumulative[i];
-        best = { dist: seg.dist, cumKm: cumulative[i] + seg.t * segLen };
+        best = { dist: seg.dist, cumKm: cumulative[i] + seg.t * segLen, segIdx: i };
       }
     }
     if (best.dist <= MAX_DETOUR_KM) {
-      out.push({ station: s, cumKm: best.cumKm, detourKm: Math.round(best.dist * 10) / 10 });
+      // Determine local route direction over a small window around the projection (~10 km)
+      const a = polyline[Math.max(0, best.segIdx - 3)];
+      const b = polyline[Math.min(polyline.length - 1, best.segIdx + 4)];
+      const dLat = b[0] - a[0];
+      const dLng = b[1] - a[1];
+      let localDir: "north" | "south" | "ew" = "ew";
+      if (Math.abs(dLat) >= Math.abs(dLng) * 0.6) {
+        localDir = dLat > 0 ? "north" : "south";
+      }
+      out.push({ station: s, cumKm: best.cumKm, detourKm: Math.round(best.dist * 10) / 10, localDir });
     }
   }
   return out.sort((a, b) => a.cumKm - b.cumKm);
