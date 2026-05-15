@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
 import { StationSheet } from "@/components/metan/StationSheet";
 import { mockPlan } from "@/lib/metan-mock";
+import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
