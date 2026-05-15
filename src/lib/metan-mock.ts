@@ -486,6 +486,8 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
     // Alternatives: candidates near same cumKm (within ±40 km), not already picked.
     // Sort by detour (least extra distance first). Recommended = closest to route.
+    // extra_trip_km = additional round-trip detour added to the trip vs the chosen stop.
+    const baseDetour = c.detourKm;
     const pool = candidatesAll
       .filter((cand) => !pickedIds.has(cand.station.id))
       .filter((cand) => Math.abs(cand.cumKm - c.cumKm) <= 40)
@@ -494,6 +496,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       .map((cand) => ({
         station: cand.station,
         detour_km: cand.detourKm,
+        extra_trip_km: Math.max(0, Math.round((2 * (cand.detourKm - baseDetour)) * 10) / 10),
         is_open_at_eta: isStationOpenAt(cand.station, eta),
       }));
 

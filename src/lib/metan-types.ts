@@ -23,7 +23,8 @@ export type Station = {
 
 export type StopAlternative = {
   station: Station;
-  detour_km: number;
+  detour_km: number;        // perpendicular distance from route (one-way)
+  extra_trip_km: number;    // additional km to the total trip if this alt is chosen instead of the recommended stop
   is_open_at_eta: boolean | null;
 };
 
