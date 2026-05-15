@@ -380,6 +380,7 @@ async function resolveWaypoint(w: string | Waypoint): Promise<{ point: [number, 
 }
 
 export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
+  await ensureStationsLoaded();
   const points: [number, number][] = [];
   const missing: string[] = [];
 
