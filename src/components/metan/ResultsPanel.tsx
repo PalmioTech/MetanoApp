@@ -57,9 +57,11 @@ function AlternativeRow({
       <Repeat className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium truncate">{alt.station.name}</div>
-        <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+        <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
           <span>{alt.station.city} ({alt.station.province})</span>
-          <span>+{alt.detour_km} km</span>
+          <span className="font-semibold text-foreground">
+            {alt.extra_trip_km > 0 ? `+${alt.extra_trip_km} km al viaggio` : "stessa deviazione"}
+          </span>
           {alt.station.price && <span>€ {alt.station.price.toFixed(3)}</span>}
         </div>
       </div>
