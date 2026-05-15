@@ -1,6 +1,6 @@
 import type { PlanRequest, PlanResult, Station, CandidateStation, StopAlternative, Waypoint } from "./metan-types";
 import { isStationOpenAt } from "./metan-types";
-import rawStations from "./metan-stations.json";
+import { loadStations, getCachedStations } from "./stations-loader";
 
 // Title-case Italian city names like "REGGIO EMILIA" -> "Reggio Emilia"
 function titleCase(s: string): string {
@@ -11,27 +11,12 @@ function titleCase(s: string): string {
     .join("");
 }
 
-export const ALL_STATIONS: Station[] = (rawStations as Station[]).map((s) => ({
-  ...s,
-  city: titleCase(s.city),
-  name: titleCase(s.name),
-  address: s.address ? titleCase(s.address) : s.address,
-}));
-
-// Build city -> centroid map (average of all stations in that city)
+// Mutable, populated by ensureStationsLoaded(). Consumers read these AFTER
+// awaiting ensureStationsLoaded() (mockPlan does this internally) or after
+// useStationsReady() flips to true (UI components).
+export const ALL_STATIONS: Station[] = [];
+export const CITIES: string[] = [];
 const CITY_INDEX = new Map<string, { lat: number; lng: number }>();
-{
-  const sums = new Map<string, { lat: number; lng: number; n: number }>();
-  for (const s of ALL_STATIONS) {
-    const key = s.city.toLowerCase();
-    const cur = sums.get(key) ?? { lat: 0, lng: 0, n: 0 };
-    cur.lat += s.lat; cur.lng += s.lng; cur.n += 1;
-    sums.set(key, cur);
-  }
-  for (const [k, v] of sums) {
-    CITY_INDEX.set(k, { lat: v.lat / v.n, lng: v.lng / v.n });
-  }
-}
 
 // Extra well-known Italian cities (fallback if not represented in dataset)
 const EXTRA_CITIES: Record<string, { lat: number; lng: number }> = {
@@ -61,8 +46,55 @@ const EXTRA_CITIES: Record<string, { lat: number; lng: number }> = {
   trento: { lat: 46.0748, lng: 11.1217 },
   bolzano: { lat: 46.4983, lng: 11.3548 },
 };
-for (const [k, v] of Object.entries(EXTRA_CITIES)) {
-  if (!CITY_INDEX.has(k)) CITY_INDEX.set(k, v);
+
+let stationsReady = false;
+
+function rebuildIndexes(stations: Station[]): void {
+  ALL_STATIONS.length = 0;
+  for (const s of stations) {
+    ALL_STATIONS.push({
+      ...s,
+      city: titleCase(s.city),
+      name: titleCase(s.name),
+      address: s.address ? titleCase(s.address) : s.address,
+    });
+  }
+
+  CITY_INDEX.clear();
+  const sums = new Map<string, { lat: number; lng: number; n: number }>();
+  for (const s of ALL_STATIONS) {
+    const key = s.city.toLowerCase();
+    const cur = sums.get(key) ?? { lat: 0, lng: 0, n: 0 };
+    cur.lat += s.lat; cur.lng += s.lng; cur.n += 1;
+    sums.set(key, cur);
+  }
+  for (const [k, v] of sums) {
+    CITY_INDEX.set(k, { lat: v.lat / v.n, lng: v.lng / v.n });
+  }
+  for (const [k, v] of Object.entries(EXTRA_CITIES)) {
+    if (!CITY_INDEX.has(k)) CITY_INDEX.set(k, v);
+  }
+
+  CITIES.length = 0;
+  const sorted = Array.from(new Set(Array.from(CITY_INDEX.keys()).map(titleCase))).sort();
+  for (const c of sorted) CITIES.push(c);
+
+  stationsReady = true;
+}
+
+export async function ensureStationsLoaded(): Promise<void> {
+  if (stationsReady) return;
+  const cached = getCachedStations();
+  if (cached.length > 0) {
+    rebuildIndexes(cached);
+    return;
+  }
+  const stations = await loadStations();
+  rebuildIndexes(stations);
+}
+
+export function isStationsReady(): boolean {
+  return stationsReady;
 }
 
 export function geocodeCity(name: string): { lat: number; lng: number } | null {
@@ -76,11 +108,6 @@ export function geocodeCity(name: string): { lat: number; lng: number } | null {
   return null;
 }
 
-export const CITIES: string[] = Array.from(
-  new Set([
-    ...Array.from(CITY_INDEX.keys()).map(titleCase),
-  ])
-).sort();
 
 // Haversine distance in km
 function haversine(a: [number, number], b: [number, number]): number {
