@@ -28,6 +28,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  const { ready: stationsReady, error: stationsError } = useStations();
   const [result, setResult] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [highlighted, setHighlighted] = useState<number | null>(null);
