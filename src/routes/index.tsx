@@ -107,6 +107,26 @@ function HomePage() {
         />
       </Suspense>
 
+      {/* Stations CSV loading / error */}
+      {!stationsReady && !stationsError && (
+        <div className="absolute inset-0 z-[2500] flex items-center justify-center bg-background/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-card border border-border shadow-[var(--shadow-panel)]">
+            <div className="h-10 w-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+            <p className="text-sm font-medium text-foreground">Carico distributori…</p>
+          </div>
+        </div>
+      )}
+      {stationsError && (
+        <div className="absolute inset-0 z-[2500] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="max-w-sm flex flex-col items-center gap-3 p-6 rounded-2xl bg-card border border-destructive/40 shadow-[var(--shadow-panel)] text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+            <p className="text-sm font-semibold">Impossibile caricare i distributori</p>
+            <p className="text-xs text-muted-foreground">{stationsError}</p>
+            <p className="text-[11px] text-muted-foreground">Verifica che il file <code>public/distributori.csv</code> esista.</p>
+          </div>
+        </div>
+      )}
+
       {/* Loading overlay */}
       {loading && (
         <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-background/60 backdrop-blur-sm">
