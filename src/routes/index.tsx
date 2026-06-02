@@ -258,6 +258,35 @@ function HomePage() {
         </div>
       )}
 
+      {/* Mobile: floating buttons when drawer collapsed — "Mostra mappa" hint + quick Naviga */}
+      {result && !drawerOpen && (
+        <div className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] flex gap-2 pointer-events-none">
+          {buildGoogleMapsUrl() && (
+            <a
+              href={buildGoogleMapsUrl()!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+            >
+              <Navigation className="h-4 w-4" />
+              Avvia navigazione
+              <ExternalLink className="h-3.5 w-3.5 opacity-80" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Mobile: when drawer is open, show a quick "Mostra mappa" button at the top */}
+      {result && drawerOpen && (
+        <button
+          onClick={() => setDrawerOpen(false)}
+          className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1100] inline-flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-4 py-2 shadow-[var(--shadow-card)] text-xs font-semibold"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+          Mostra mappa
+        </button>
+      )}
+
       <StationSheet
         station={selectedStation}
         onClose={() => setSelectedStation(null)}
