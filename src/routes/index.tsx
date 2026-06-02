@@ -56,6 +56,7 @@ function HomePage() {
     await runPlan({ ...req, forced_station_ids: [], excluded_station_ids: [] });
     setFormCollapsed(true);
     setDrawerOpen(true);
+    setMobileFormOpen(false);
   };
 
   const handleEdit = () => {
@@ -64,6 +65,7 @@ function HomePage() {
     setForcedStationIds([]);
     setExcludedStationIds([]);
     setLastReq(null);
+    setMobileFormOpen(true);
   };
 
   const handleAddStation = async (stationId: number) => {
