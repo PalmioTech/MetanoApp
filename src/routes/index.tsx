@@ -183,20 +183,44 @@ function HomePage() {
         </div>
       )}
 
-      {/* Floating left panel (desktop) — also acts as full sheet on mobile when no result */}
+      {/* Floating left panel (desktop) — full sheet on mobile only when mobileFormOpen */}
       <div
         className={cn(
-          "absolute z-[1000] transition-all duration-300",
+          "absolute z-[1500] transition-all duration-300",
           "md:top-4 md:left-4 md:bottom-4 md:w-[380px]",
-          !result && "top-0 left-0 right-0 bottom-0 md:bottom-4",
-          result && formCollapsed && "hidden md:block",
+          "top-0 left-0 right-0 bottom-0 md:bottom-4",
+          // Mobile visibility
+          !mobileFormOpen && "hidden md:block",
+          // Desktop: hide when form is collapsed after a plan
+          result && formCollapsed && "md:hidden",
           formCollapsed && "md:opacity-0 md:pointer-events-none md:-translate-x-4"
         )}
       >
-        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto p-5 md:p-6">
+        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto p-5 md:p-6 relative">
+          {/* Mobile close button */}
+          <button
+            type="button"
+            onClick={() => setMobileFormOpen(false)}
+            className="md:hidden absolute top-3 right-3 h-9 w-9 inline-flex items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition"
+            aria-label="Chiudi"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <TripForm onPlan={handlePlan} loading={loading} />
         </div>
       </div>
+
+      {/* Mobile: floating CTA over the map to open the search modal (only when no result) */}
+      {!result && !mobileFormOpen && stationsReady && (
+        <button
+          type="button"
+          onClick={() => setMobileFormOpen(true)}
+          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-6 z-[1100] inline-flex items-center gap-2 px-6 h-14 rounded-full bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-semibold shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+        >
+          <Search className="h-5 w-5" />
+          Pianifica viaggio
+        </button>
+      )}
 
       {/* Compact "edit" chip when form collapsed (desktop) */}
       {result && formCollapsed && (
