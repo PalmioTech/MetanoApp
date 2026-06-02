@@ -4,7 +4,8 @@ import { ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
 import { StationSheet } from "@/components/metan/StationSheet";
-import { mockPlan } from "@/lib/metan-mock";
+import { mockPlan, ALL_STATIONS, CITIES } from "@/lib/metan-mock";
+import { Navigation, ExternalLink } from "lucide-react";
 import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
@@ -87,13 +88,46 @@ function HomePage() {
 
   const handleRemoveStation = async (stationId: number) => {
     if (!lastReq) return;
-    // Remove from forced AND add to excluded so algorithm skips it
-    const nextForced = forcedStationIds.filter((id) => id !== stationId);
-    const nextExcluded = [...excludedStationIds, stationId];
+    // Find the removed station, then exclude every station within ~40 km of it
+    // so the algorithm doesn't immediately substitute another stop in the same area.
+    const removed = ALL_STATIONS.find((s) => s.id === stationId);
+    const RADIUS_KM = 40;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const distKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    };
+    const nearby = removed
+      ? ALL_STATIONS.filter((s) => distKm(removed, s) <= RADIUS_KM).map((s) => s.id)
+      : [stationId];
+    const nextForced = forcedStationIds.filter((id) => !nearby.includes(id));
+    const nextExcluded = Array.from(new Set([...excludedStationIds, ...nearby]));
     setForcedStationIds(nextForced);
     setExcludedStationIds(nextExcluded);
     setHighlighted(null);
     await runPlan({ ...lastReq, forced_station_ids: nextForced, excluded_station_ids: nextExcluded });
+  };
+
+  // Build a Google Maps directions URL for the full planned route.
+  const buildGoogleMapsUrl = (): string | null => {
+    if (!result || !lastReq) return null;
+    const poly = result.route.polyline;
+    const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
+    const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
+    const originParam = isCity(lastReq.origin) || !poly.length
+      ? lastReq.origin
+      : `${poly[0][0]},${poly[0][1]}`;
+    const destParam = isCity(lastReq.destination) || !poly.length
+      ? lastReq.destination
+      : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
+    const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
+    const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
   };
 
   return (
@@ -222,6 +256,35 @@ function HomePage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Mobile: floating buttons when drawer collapsed — "Mostra mappa" hint + quick Naviga */}
+      {result && !drawerOpen && (
+        <div className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] flex gap-2 pointer-events-none">
+          {buildGoogleMapsUrl() && (
+            <a
+              href={buildGoogleMapsUrl()!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+            >
+              <Navigation className="h-4 w-4" />
+              Avvia navigazione
+              <ExternalLink className="h-3.5 w-3.5 opacity-80" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Mobile: when drawer is open, show a quick "Mostra mappa" button at the top */}
+      {result && drawerOpen && (
+        <button
+          onClick={() => setDrawerOpen(false)}
+          className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1100] inline-flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-4 py-2 shadow-[var(--shadow-card)] text-xs font-semibold"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+          Mostra mappa
+        </button>
       )}
 
       <StationSheet
