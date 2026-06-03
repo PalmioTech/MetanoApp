@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useState } from "react";
-import { ChevronUp, ChevronDown, AlertTriangle, Search, X } from "lucide-react";
+import { ChevronUp, ChevronDown, AlertTriangle, MapPinned, X } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
 import { StationSheet } from "@/components/metan/StationSheet";
@@ -215,9 +215,9 @@ function HomePage() {
         <button
           type="button"
           onClick={() => setMobileFormOpen(true)}
-          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-6 z-[1100] inline-flex items-center gap-2 px-6 h-14 rounded-full bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-semibold shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-6 z-[1100] inline-flex items-center gap-2.5 px-7 h-14 rounded-full bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold shadow-[0_8px_32px_-8px_oklch(0.18_0.05_160_/_0.35),0_2px_8px_-2px_oklch(0.18_0.05_160_/_0.12)] border border-white/20 backdrop-blur-sm active:scale-[0.96] transition-transform duration-150"
         >
-          <Search className="h-5 w-5" />
+          <MapPinned className="h-5 w-5" />
           Pianifica viaggio
         </button>
       )}
