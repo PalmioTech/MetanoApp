@@ -320,27 +320,44 @@ async function fetchOsrmRoute(
 ): Promise<{ polyline: [number, number][]; distanceKm: number; durationMin: number } | null> {
   try {
     const coords = points.map(([lat, lng]) => `${lng},${lat}`).join(";");
-    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+    // Request multiple alternatives when there are only 2 points (origin+dest).
+    // With waypoints OSRM ignores alternatives=true, so we only set it for direct A→B.
+    const alt = points.length === 2 ? "true" : "false";
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=${alt}&continue_straight=true`;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 10000);
     const res = await fetch(url, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
     const data = await res.json();
-    const route = data?.routes?.[0];
-    if (!route) return null;
-    const coordsArr: [number, number][] = route.geometry.coordinates.map(
+    const routes = data?.routes;
+    if (!routes || routes.length === 0) return null;
+
+    // Score each alternative: prefer the SHORTEST distance (most direct),
+    // not the fastest one. OSRM's default "fastest" tends to pick highways
+    // even when they imply a long geographic detour (es. Roma→Macerata via
+    // l'Abruzzo). Adding a small weight to duration breaks ties.
+    const scored = routes
+      .map((r: any) => ({
+        r,
+        score: r.distance / 1000 + (r.duration / 60) * 0.15,
+      }))
+      .sort((a: any, b: any) => a.score - b.score);
+    const best = scored[0].r;
+
+    const coordsArr: [number, number][] = best.geometry.coordinates.map(
       ([lng, lat]: [number, number]) => [lat, lng],
     );
     return {
       polyline: coordsArr,
-      distanceKm: route.distance / 1000,
-      durationMin: route.duration / 60,
+      distanceKm: best.distance / 1000,
+      durationMin: best.duration / 60,
     };
   } catch {
     return null;
   }
 }
+
 
 function cumulativeDistances(polyline: [number, number][]): number[] {
   const cum: number[] = [0];
