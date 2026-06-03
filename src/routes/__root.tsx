@@ -28,7 +28,22 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
+      { httpEquiv: "Referrer-Policy", content: "strict-origin-when-cross-origin" },
+      { httpEquiv: "Permissions-Policy", content: "camera=(), microphone=(), payment=(), usb=(), geolocation=(self)" },
+      {
+        httpEquiv: "Content-Security-Policy",
+        content:
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com data:; " +
+          "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org https://*.r2.dev; " +
+          "connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; " +
+          "frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev https://lovable.dev; " +
+          "base-uri 'self'; form-action 'self';",
+      },
       { title: "MetanApp" },
       { name: "description", content: "Pianifica il tuo viaggio a metano. Trova le stazioni CNG migliori sul percorso" },
       { name: "author", content: "Lovable" },
