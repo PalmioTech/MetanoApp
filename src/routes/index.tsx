@@ -215,9 +215,9 @@ function HomePage() {
         <button
           type="button"
           onClick={() => setMobileFormOpen(true)}
-          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-6 z-[1100] inline-flex items-center gap-2.5 px-7 h-14 rounded-full bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold shadow-[0_8px_32px_-8px_oklch(0.18_0.05_160_/_0.35),0_2px_8px_-2px_oklch(0.18_0.05_160_/_0.12)] border border-white/20 backdrop-blur-sm active:scale-[0.96] transition-transform duration-150"
+          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-5 z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
         >
-          <MapPinned className="h-5 w-5" />
+          <MapPinned className="h-4 w-4 text-primary" />
           Pianifica viaggio
         </button>
       )}
