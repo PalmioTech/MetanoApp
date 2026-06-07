@@ -160,6 +160,7 @@ interface TripFormProps {
 }
 
 export function TripForm({ onPlan, loading }: TripFormProps) {
+  const [mode, setMode] = useState<"navigate" | "organize">("navigate");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -174,40 +175,24 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const isOrganize = mode === "organize";
     onPlan({
       origin,
       destination,
       waypoints,
-      current_range_km: Number(currentRange) || 0,
-      max_range_km: Number(maxRange) || 0,
-      safety_margin_km: Number(safety) || 0,
+      // In "navigate" mode we don't auto-suggest stops: give a huge range so
+      // the planner draws the route only. The user picks stations from the map.
+      current_range_km: isOrganize ? Number(currentRange) || 0 : 999999,
+      max_range_km: isOrganize ? Number(maxRange) || 0 : 999999,
+      safety_margin_km: isOrganize ? Number(safety) || 0 : 0,
       depart_at: departMode === "schedule" ? departAt : null,
       origin_coords: originCoords ?? undefined,
       destination_coords: destCoords ?? undefined,
     } as any);
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="flex items-center gap-2.5">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-md">
-          <Fuel className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <div>
-          <div className="font-bold text-lg leading-tight">MetanApp</div>
-          <div className="text-[11px] text-muted-foreground leading-tight">CNG Trip Planner</div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-base font-semibold tracking-tight">
-          Pianifica il tuo viaggio a metano
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Trova le stazioni CNG migliori sul percorso
-        </p>
-      </div>
-
+  const sharedFields = (
+    <>
       <div className="space-y-3">
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground">Partenza</Label>
@@ -264,43 +249,84 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
           Aggiungi tappa intermedia
         </button>
       </div>
+    </>
+  );
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-muted-foreground">
-            Autonomia attuale (km)
-          </Label>
-          <Input
-            type="number"
-            value={currentRange}
-            onChange={(e) => setCurrentRange(e.target.value)}
-            className="h-11 bg-secondary/50 border-secondary"
-          />
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="flex items-center gap-2.5">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-md">
+          <Fuel className="h-5 w-5 text-primary-foreground" />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-muted-foreground">
-            Km con il pieno (max)
-          </Label>
-          <Input
-            type="number"
-            value={maxRange}
-            onChange={(e) => setMaxRange(e.target.value)}
-            className="h-11 bg-secondary/50 border-secondary"
-          />
+        <div>
+          <div className="font-bold text-lg leading-tight">MetanApp</div>
+          <div className="text-[11px] text-muted-foreground leading-tight">CNG Trip Planner</div>
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium text-muted-foreground">
-          Margine sicurezza (km)
-        </Label>
-        <Input
-          type="number"
-          value={safety}
-          onChange={(e) => setSafety(e.target.value)}
-          className="h-11 bg-secondary/50 border-secondary"
-        />
-      </div>
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "navigate" | "organize")}>
+        <TabsList className="grid grid-cols-2 w-full h-10">
+          <TabsTrigger value="navigate" className="text-xs font-medium gap-1.5">
+            <Navigation className="h-3.5 w-3.5" />
+            Naviga
+          </TabsTrigger>
+          <TabsTrigger value="organize" className="text-xs font-medium gap-1.5">
+            <Gauge className="h-3.5 w-3.5" />
+            Organizza
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="navigate" className="space-y-4 mt-4">
+          <p className="text-xs text-muted-foreground">
+            Calcola la rotta da partenza a destinazione. Poi scegli sulla mappa le stazioni dove fermarti.
+          </p>
+          {sharedFields}
+        </TabsContent>
+
+        <TabsContent value="organize" className="space-y-4 mt-4">
+          <p className="text-xs text-muted-foreground">
+            Indica la tua autonomia: ti suggeriamo automaticamente dove fermarti.
+          </p>
+          {sharedFields}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Autonomia attuale (km)
+              </Label>
+              <Input
+                type="number"
+                value={currentRange}
+                onChange={(e) => setCurrentRange(e.target.value)}
+                className="h-11 bg-secondary/50 border-secondary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Km con il pieno (max)
+              </Label>
+              <Input
+                type="number"
+                value={maxRange}
+                onChange={(e) => setMaxRange(e.target.value)}
+                className="h-11 bg-secondary/50 border-secondary"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Margine sicurezza (km)
+            </Label>
+            <Input
+              type="number"
+              value={safety}
+              onChange={(e) => setSafety(e.target.value)}
+              className="h-11 bg-secondary/50 border-secondary"
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-1 p-1 bg-secondary rounded-lg">
@@ -326,7 +352,7 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Organizza viaggio
+            Pianifica orario
           </button>
         </div>
         {departMode === "schedule" && (
@@ -349,8 +375,10 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             Calcolo in corso...
           </>
+        ) : mode === "navigate" ? (
+          "Calcola percorso"
         ) : (
-          "Trova il percorso migliore"
+          "Trova le soste migliori"
         )}
       </Button>
     </form>
