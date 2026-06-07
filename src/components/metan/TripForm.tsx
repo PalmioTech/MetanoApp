@@ -180,6 +180,7 @@ export function TripForm({ onPlan, loading }: TripFormProps) {
       origin,
       destination,
       waypoints,
+      mode,
       // In "navigate" mode we don't auto-suggest stops: give a huge range so
       // the planner draws the route only. The user picks stations from the map.
       current_range_km: isOrganize ? Number(currentRange) || 0 : 999999,
