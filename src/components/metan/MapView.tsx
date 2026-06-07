@@ -255,18 +255,21 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         </>
       )}
 
-      {visibleStations.map((s) => (
-        <Marker
-          key={s.id}
-          position={[s.lat, s.lng]}
-          icon={grayIcon(s, hoveredStationId === s.id)}
-          eventHandlers={{
-            click: () => onStationClick(s),
-            mouseover: () => setHoveredStationId(s.id),
-            mouseout: () => setHoveredStationId((id) => (id === s.id ? null : id)),
-          }}
-        />
-      ))}
+      {visibleStations.map((s) => {
+        const openNow = isStationOpenAt(s, new Date()) === true;
+        return (
+          <Marker
+            key={s.id}
+            position={[s.lat, s.lng]}
+            icon={grayIcon(s, hoveredStationId === s.id, openNow)}
+            eventHandlers={{
+              click: () => onStationClick(s),
+              mouseover: () => setHoveredStationId(s.id),
+              mouseout: () => setHoveredStationId((id) => (id === s.id ? null : id)),
+            }}
+          />
+        );
+      })}
 
       {highlightedAlternatives.map((alt) => (
         <Marker
