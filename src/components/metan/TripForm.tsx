@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Crosshair, Plus, X, Loader2, Fuel } from "lucide-react";
+import { Crosshair, Plus, X, Loader2, Fuel, Navigation, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CITIES } from "@/lib/metan-mock";
 import type { PlanRequest } from "@/lib/metan-types";
 import { cn } from "@/lib/utils";
