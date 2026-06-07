@@ -227,6 +227,7 @@ export function ResultsPanel({
   forcedStationIds,
   origin,
   destination,
+  mode = "organize",
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
@@ -234,6 +235,7 @@ export function ResultsPanel({
   const remaining = result.meta.remaining_range_km;
   const margin = result.meta.safety_margin_km;
   const canStart = remaining >= margin;
+  const isNavigate = mode === "navigate";
 
   const buildMapsUrl = (provider: "google" | "apple") => {
     const poly = result.route.polyline;
