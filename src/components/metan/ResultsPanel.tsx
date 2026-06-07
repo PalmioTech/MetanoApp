@@ -17,6 +17,7 @@ interface ResultsPanelProps {
   forcedStationIds: number[];
   origin: string;
   destination: string;
+  mode?: "navigate" | "organize";
 }
 
 function statusColor(open: boolean | null) {
@@ -226,6 +227,7 @@ export function ResultsPanel({
   forcedStationIds,
   origin,
   destination,
+  mode = "organize",
 }: ResultsPanelProps) {
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
@@ -233,6 +235,7 @@ export function ResultsPanel({
   const remaining = result.meta.remaining_range_km;
   const margin = result.meta.safety_margin_km;
   const canStart = remaining >= margin;
+  const isNavigate = mode === "navigate";
 
   const buildMapsUrl = (provider: "google" | "apple") => {
     const poly = result.route.polyline;
@@ -301,9 +304,15 @@ export function ResultsPanel({
         )}
 
         {result.stops.length === 0 && result.warnings.length === 0 && (
-          <div className="text-center py-6 text-sm text-muted-foreground">
-            Nessuna sosta necessaria. Hai autonomia sufficiente per arrivare a destinazione.
-          </div>
+          isNavigate ? (
+            <div className="rounded-xl border border-border bg-secondary/40 p-4 text-xs text-muted-foreground leading-relaxed">
+              Percorso calcolato. Le <span className="font-semibold text-foreground">stazioni aperte ora</span> lungo la strada sono evidenziate in <span className="font-semibold text-success">verde</span> sulla mappa. Tocca un'icona per aggiungerla come sosta.
+            </div>
+          ) : (
+            <div className="text-center py-6 text-sm text-muted-foreground">
+              Nessuna sosta necessaria. Hai autonomia sufficiente per arrivare a destinazione.
+            </div>
+          )
         )}
 
         {result.stops.map((stop) => {
@@ -325,58 +334,85 @@ export function ResultsPanel({
           );
         })}
 
-        {/* Arrival card with navigation buttons */}
-        <div className={cn(
-          "rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br",
-          canStart ? "from-primary to-primary-glow" : "from-destructive to-destructive/70"
-        )}>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs opacity-90">Arrivo a destinazione</div>
-              <div className="font-semibold text-base mt-0.5">Autonomia residua</div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">{remaining}</div>
-              <div className="text-xs opacity-90">km</div>
+        {/* Arrival card: navigate mode shows only the launch buttons; organize mode shows autonomy */}
+        {isNavigate ? (
+          <div className="rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br from-primary to-primary-glow">
+            <div className="text-xs opacity-90">Pronto a partire</div>
+            <div className="font-semibold text-base mt-0.5">Avvia navigazione</div>
+            <div className="mt-3 flex gap-2">
+              <a
+                href={buildMapsUrl("google")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Google Maps
+              </a>
+              <a
+                href={buildMapsUrl("apple")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Apple Maps
+              </a>
             </div>
           </div>
-          <div className="mt-3 text-[11px] opacity-90">
-            Margine di sicurezza richiesto: {margin} km
-          </div>
-
-          {!canStart && (
-            <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs font-medium">
-              <AlertTriangle className="h-4 w-4" />
-              Autonomia insufficiente per raggiungere la destinazione
-            </div>
-          )}
-
-          {canStart && (
-            <div className="mt-3 space-y-2">
-              <div className="text-[11px] font-medium opacity-90">Avvia navigazione con:</div>
-              <div className="flex gap-2">
-                <a
-                  href={buildMapsUrl("google")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Google Maps
-                </a>
-                <a
-                  href={buildMapsUrl("apple")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Apple Maps
-                </a>
+        ) : (
+          <div className={cn(
+            "rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br",
+            canStart ? "from-primary to-primary-glow" : "from-destructive to-destructive/70"
+          )}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs opacity-90">Arrivo a destinazione</div>
+                <div className="font-semibold text-base mt-0.5">Autonomia residua</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold">{remaining}</div>
+                <div className="text-xs opacity-90">km</div>
               </div>
             </div>
-          )}
-        </div>
+            <div className="mt-3 text-[11px] opacity-90">
+              Margine di sicurezza richiesto: {margin} km
+            </div>
+
+            {!canStart && (
+              <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs font-medium">
+                <AlertTriangle className="h-4 w-4" />
+                Autonomia insufficiente per raggiungere la destinazione
+              </div>
+            )}
+
+            {canStart && (
+              <div className="mt-3 space-y-2">
+                <div className="text-[11px] font-medium opacity-90">Avvia navigazione con:</div>
+                <div className="flex gap-2">
+                  <a
+                    href={buildMapsUrl("google")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Google Maps
+                  </a>
+                  <a
+                    href={buildMapsUrl("apple")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Apple Maps
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
