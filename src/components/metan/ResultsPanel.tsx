@@ -17,6 +17,7 @@ interface ResultsPanelProps {
   forcedStationIds: number[];
   origin: string;
   destination: string;
+  mode?: "navigate" | "organize";
 }
 
 function statusColor(open: boolean | null) {
