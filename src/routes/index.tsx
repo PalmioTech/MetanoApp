@@ -279,6 +279,7 @@ function HomePage() {
                 forcedStationIds={forcedStationIds}
                 origin={lastReq?.origin ?? ""}
                 destination={lastReq?.destination ?? ""}
+                mode={lastReq?.mode}
               />
             )}
           </div>
