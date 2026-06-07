@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
+import { isStationOpenAt } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
 
 function isHighwayStation(s: Station): boolean {
@@ -39,7 +40,7 @@ const stopIcon = (number: number, highlighted = false) => {
   });
 };
 
-const grayIcon = (station: Station, hover = false) => {
+const grayIcon = (station: Station, hover = false, openNow = false) => {
   const highway = isHighwayStation(station);
   const h24 = isH24Station(station);
   const size = hover ? 28 : 20;
@@ -47,8 +48,15 @@ const grayIcon = (station: Station, hover = false) => {
 
   let bg: string;
   let shadow: string;
-  if (highway) {
-    // Blue for highway stations
+  if (openNow) {
+    // Bright green for stations open right now
+    bg = hover
+      ? "linear-gradient(135deg, oklch(0.68 0.20 150), oklch(0.76 0.20 155))"
+      : "linear-gradient(135deg, oklch(0.62 0.19 150), oklch(0.70 0.18 155))";
+    shadow = hover
+      ? "0 6px 16px rgba(22,163,74,.55)"
+      : "0 2px 6px rgba(22,163,74,.4)";
+  } else if (highway) {
     bg = hover
       ? "linear-gradient(135deg, oklch(0.55 0.22 250), oklch(0.65 0.20 260))"
       : "linear-gradient(135deg, oklch(0.50 0.18 250), oklch(0.58 0.16 255))";
@@ -56,7 +64,6 @@ const grayIcon = (station: Station, hover = false) => {
       ? "0 6px 16px rgba(37,99,235,.5)"
       : "0 2px 6px rgba(37,99,235,.3)";
   } else if (h24) {
-    // Amber/gold for 24h automatic
     bg = hover
       ? "linear-gradient(135deg, oklch(0.72 0.19 85), oklch(0.78 0.17 75))"
       : "linear-gradient(135deg, oklch(0.65 0.16 85), oklch(0.72 0.14 80))";
@@ -248,18 +255,21 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         </>
       )}
 
-      {visibleStations.map((s) => (
-        <Marker
-          key={s.id}
-          position={[s.lat, s.lng]}
-          icon={grayIcon(s, hoveredStationId === s.id)}
-          eventHandlers={{
-            click: () => onStationClick(s),
-            mouseover: () => setHoveredStationId(s.id),
-            mouseout: () => setHoveredStationId((id) => (id === s.id ? null : id)),
-          }}
-        />
-      ))}
+      {visibleStations.map((s) => {
+        const openNow = isStationOpenAt(s, new Date()) === true;
+        return (
+          <Marker
+            key={s.id}
+            position={[s.lat, s.lng]}
+            icon={grayIcon(s, hoveredStationId === s.id, openNow)}
+            eventHandlers={{
+              click: () => onStationClick(s),
+              mouseover: () => setHoveredStationId(s.id),
+              mouseout: () => setHoveredStationId((id) => (id === s.id ? null : id)),
+            }}
+          />
+        );
+      })}
 
       {highlightedAlternatives.map((alt) => (
         <Marker
