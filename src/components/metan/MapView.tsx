@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
+import { isStationOpenAt } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
 
 function isHighwayStation(s: Station): boolean {
