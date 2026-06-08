@@ -133,6 +133,25 @@ function HomePage() {
     return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
   };
 
+  // Build an Apple Maps directions URL for the full planned route.
+  const buildAppleMapsUrl = (): string | null => {
+    if (!result || !lastReq) return null;
+    const poly = result.route.polyline;
+    const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
+    const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
+    const originParam = isCity(lastReq.origin) || !poly.length
+      ? lastReq.origin
+      : `${poly[0][0]},${poly[0][1]}`;
+    const destParam = isCity(lastReq.destination) || !poly.length
+      ? lastReq.destination
+      : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
+    const stops = result.stops.map((s) => encodeURIComponent(`${s.station.lat},${s.station.lng}`));
+    if (stops.length > 0) {
+      return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${stops.join("+to:")}+to:${encodeURIComponent(destParam)}`;
+    }
+    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${encodeURIComponent(destParam)}`;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background">
       <Suspense fallback={<div className="w-screen h-screen bg-secondary animate-pulse" />}>
