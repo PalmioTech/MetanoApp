@@ -133,6 +133,25 @@ function HomePage() {
     return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
   };
 
+  // Build an Apple Maps directions URL for the full planned route.
+  const buildAppleMapsUrl = (): string | null => {
+    if (!result || !lastReq) return null;
+    const poly = result.route.polyline;
+    const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
+    const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
+    const originParam = isCity(lastReq.origin) || !poly.length
+      ? lastReq.origin
+      : `${poly[0][0]},${poly[0][1]}`;
+    const destParam = isCity(lastReq.destination) || !poly.length
+      ? lastReq.destination
+      : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
+    const stops = result.stops.map((s) => encodeURIComponent(`${s.station.lat},${s.station.lng}`));
+    if (stops.length > 0) {
+      return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${stops.join("+to:")}+to:${encodeURIComponent(destParam)}`;
+    }
+    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${encodeURIComponent(destParam)}`;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background">
       <Suspense fallback={<div className="w-screen h-screen bg-secondary animate-pulse" />}>
@@ -286,7 +305,7 @@ function HomePage() {
         </div>
       )}
 
-      {/* Mobile: floating buttons when drawer collapsed — "Mostra mappa" hint + quick Naviga */}
+      {/* Mobile: floating buttons when drawer collapsed — quick Naviga */}
       {result && !drawerOpen && (
         <div className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] flex gap-2 pointer-events-none">
           {buildGoogleMapsUrl() && (
@@ -294,11 +313,21 @@ function HomePage() {
               href={buildGoogleMapsUrl()!}
               target="_blank"
               rel="noopener noreferrer"
-              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white text-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition border border-border"
             >
-              <Navigation className="h-4 w-4" />
-              Avvia navigazione
-              <ExternalLink className="h-3.5 w-3.5 opacity-80" />
+              <ExternalLink className="h-3.5 w-3.5" />
+              Google Maps
+            </a>
+          )}
+          {buildAppleMapsUrl() && (
+            <a
+              href={buildAppleMapsUrl()!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Apple Maps
             </a>
           )}
         </div>
