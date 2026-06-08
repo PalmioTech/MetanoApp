@@ -305,7 +305,7 @@ function HomePage() {
         </div>
       )}
 
-      {/* Mobile: floating buttons when drawer collapsed — "Mostra mappa" hint + quick Naviga */}
+      {/* Mobile: floating buttons when drawer collapsed — quick Naviga */}
       {result && !drawerOpen && (
         <div className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] flex gap-2 pointer-events-none">
           {buildGoogleMapsUrl() && (
@@ -313,11 +313,21 @@ function HomePage() {
               href={buildGoogleMapsUrl()!}
               target="_blank"
               rel="noopener noreferrer"
-              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white text-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition border border-border"
             >
-              <Navigation className="h-4 w-4" />
-              Avvia navigazione
-              <ExternalLink className="h-3.5 w-3.5 opacity-80" />
+              <ExternalLink className="h-3.5 w-3.5" />
+              Google Maps
+            </a>
+          )}
+          {buildAppleMapsUrl() && (
+            <a
+              href={buildAppleMapsUrl()!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Apple Maps
             </a>
           )}
         </div>
