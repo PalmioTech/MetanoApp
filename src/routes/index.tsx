@@ -22,6 +22,26 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Pianifica il tuo viaggio in auto a metano (CNG). Trova le migliori stazioni di rifornimento sul tuo percorso, con prezzi, orari e dettagli." },
       { property: "og:title", content: "MetanApp — Trip Planner per auto a metano" },
       { property: "og:description", content: "Calcola il percorso ottimale e le soste CNG migliori in tutta Italia." },
+      { property: "og:url", content: "https://metano-route-genius.lovable.app/" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://metano-route-genius.lovable.app/" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "MetanApp",
+          url: "https://metano-route-genius.lovable.app/",
+          description: "Pianifica viaggi a metano (CNG) trovando le migliori stazioni sul percorso.",
+          applicationCategory: "TravelApplication",
+          operatingSystem: "Any",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+        }),
+      },
     ],
   }),
   component: HomePage,
