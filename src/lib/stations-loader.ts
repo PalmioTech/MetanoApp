@@ -126,7 +126,7 @@ export class StationsLoadError extends Error {
 async function fetchAndParse(): Promise<Station[]> {
   let res: Response;
   try {
-    res = await fetch("/distributori.csv", { cache: "force-cache" });
+    res = await fetch("/distributori.csv", { cache: "no-cache" });
   } catch (e) {
     throw new StationsLoadError("Impossibile scaricare /distributori.csv", e);
   }
