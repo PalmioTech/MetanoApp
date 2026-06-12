@@ -1,0 +1,34 @@
+name: Update distributori CSV
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Update CSV
+        run: python scripts/aggiorna_metanoauto.py public/distributori.csv -o public/distributori.csv
+
+      - name: Commit if changed
+        run: |
+          git config user.name "metano-bot"
+          git config user.email "actions@github.com"
+          git add public/distributori.csv
+          git diff --cached --quiet || git commit -m "Update distributori CSV"
+          git push
