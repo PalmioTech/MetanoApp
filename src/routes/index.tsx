@@ -278,7 +278,7 @@ function HomePage() {
           formCollapsed && "md:opacity-0 md:pointer-events-none md:-translate-x-4"
         )}
       >
-        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto p-5 md:p-6 relative">
+        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto px-5 pb-5 pt-16 md:p-6 relative">
           {/* Mobile close button */}
           <button
             type="button"
