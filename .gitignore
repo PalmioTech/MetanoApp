@@ -15,6 +15,7 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.metano_geocode_cache.json
 
 # Wrangler / Cloudflare
 .wrangler/

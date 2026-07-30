@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import json
 import re
 import subprocess
 import time
@@ -29,6 +30,7 @@ MAP_DATA_URL = urljoin(
     BASE_URL,
     "modules.php?name=Distributori&op=DistUEGetDati&p=1",
 )
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 FIELDNAMES = [
     "lat",
     "Long",
@@ -447,12 +449,90 @@ def find_coordinate_record(
     return None
 
 
+def load_geocode_cache(path: Path) -> dict[str, dict[str, str] | None]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_geocode_cache(path: Path, cache: dict[str, dict[str, str] | None]) -> None:
+    path.write_text(json.dumps(cache, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def geocode_update(
+    session: requests.Session,
+    update: dict[str, str],
+    cache: dict[str, dict[str, str] | None],
+    cache_path: Path,
+    delay: float,
+    timeout: int,
+) -> dict[str, str] | None:
+    cache_key = "|".join(key(update["provincia"], update["citta"], update["via"]))
+    if cache_key in cache:
+        return cache[cache_key]
+
+    queries = [
+        f"{update['via']}, {update['citta']}, {update['provincia']}, Italia",
+        f"{update['citta']} {update['via']}, Italia",
+        f"{update['citta']}, {update['provincia']}, Italia",
+    ]
+    for query in queries:
+        try:
+            response = session.get(
+                NOMINATIM_URL,
+                params={
+                    "format": "jsonv2",
+                    "limit": 1,
+                    "countrycodes": "it",
+                    "q": query,
+                },
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception:
+            data = []
+        if data:
+            try:
+                lat_value = float(str(data[0]["lat"]).replace(",", "."))
+                lon_value = float(str(data[0]["lon"]).replace(",", "."))
+            except (KeyError, ValueError, TypeError):
+                continue
+            coords = coord_pair(str(lon_value), str(lat_value))
+            if coords:
+                record = {
+                    "lat": coords[0],
+                    "Long": coords[1],
+                    "Via estesa": via_estesa(update["provincia"], update["citta"], update["via"]),
+                    "provincia": update["provincia"],
+                    "citta": update["citta"],
+                    "via": update["via"],
+                }
+                cache[cache_key] = record
+                save_geocode_cache(cache_path, cache)
+                time.sleep(delay)
+                return record
+        time.sleep(delay)
+
+    cache[cache_key] = None
+    save_geocode_cache(cache_path, cache)
+    return None
+
+
 def update_csv(
     input_path: Path,
     output_path: Path,
     updates: dict[tuple[str, str, str], dict[str, str]],
     coordinate_records: dict[tuple[str, str, str], dict[str, str]] | None = None,
     add_new: bool = False,
+    geocode_missing: bool = False,
+    geocode_delay: float = 1.1,
+    geocode_cache_path: Path | None = None,
+    timeout: int = 30,
 ) -> tuple[int, int, int, int]:
     with input_path.open("r", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f, delimiter=";"))
@@ -474,6 +554,18 @@ def update_csv(
 
     added = 0
     missing_coords = 0
+    geocode_cache: dict[str, dict[str, str] | None] = {}
+    geocode_session: requests.Session | None = None
+    if geocode_missing:
+        geocode_cache_path = geocode_cache_path or Path(".metano_geocode_cache.json")
+        geocode_cache = load_geocode_cache(geocode_cache_path)
+        geocode_session = requests.Session()
+        geocode_session.headers.update(
+            {
+                **HEADERS,
+                "User-Agent": "MetanoApp CSV updater (contact: PalmioTech)",
+            }
+        )
     if add_new:
         coordinate_records = coordinate_records or {}
         for update_key, update in sorted(updates.items()):
@@ -481,8 +573,19 @@ def update_csv(
                 continue
             coords = find_coordinate_record(update, coordinate_records)
             if not coords:
-                missing_coords += 1
-                continue
+                if geocode_missing and geocode_session is not None:
+                    print(f"Geocoding: {update['provincia']} {update['citta']} {update['via']}")
+                    coords = geocode_update(
+                        geocode_session,
+                        update,
+                        geocode_cache,
+                        geocode_cache_path or Path(".metano_geocode_cache.json"),
+                        geocode_delay,
+                        timeout,
+                    )
+                if not coords:
+                    missing_coords += 1
+                    continue
             rows.append(
                 {
                     "lat": coords["lat"],
@@ -547,6 +650,22 @@ def main() -> None:
         help="URL PDI da usare per coordinate se accessibile/loggato.",
     )
     parser.add_argument(
+        "--geocode-missing",
+        action="store_true",
+        help="Prova OpenStreetMap/Nominatim per coordinate mancanti dei nuovi distributori.",
+    )
+    parser.add_argument(
+        "--geocode-delay",
+        type=float,
+        default=1.1,
+        help="Secondi pausa tra richieste geocoding.",
+    )
+    parser.add_argument(
+        "--geocode-cache",
+        default=".metano_geocode_cache.json",
+        help="File cache locale per risultati geocoding.",
+    )
+    parser.add_argument(
         "--insecure",
         action="store_true",
         help="Disabilita verifica certificato SSL. Usare solo se certificati locali Python sono rotti.",
@@ -577,6 +696,10 @@ def main() -> None:
         updates,
         coordinate_records=coordinate_records,
         add_new=args.add_new,
+        geocode_missing=args.geocode_missing,
+        geocode_delay=args.geocode_delay,
+        geocode_cache_path=Path(args.geocode_cache).expanduser(),
+        timeout=args.timeout,
     )
     print(f"Righe sorgente abbinate: {matched}")
     print(f"Campi aggiornati: {changed}")
