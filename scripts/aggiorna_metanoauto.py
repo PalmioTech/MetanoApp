@@ -334,6 +334,14 @@ def parse_coordinate_data(text: str) -> dict[tuple[str, str, str], dict[str, str
     return parse_csv_like_pdi(text)
 
 
+def coordinate_extended_keys(coordinate_records: dict[tuple[str, str, str], dict[str, str]]) -> set[str]:
+    return {
+        norm(record.get("Via estesa", ""))
+        for record in coordinate_records.values()
+        if record.get("Via estesa")
+    }
+
+
 def fetch_with_curl(url: str, timeout: int, insecure: bool = False) -> str:
     command = [
         "curl",
@@ -533,9 +541,32 @@ def update_csv(
     geocode_delay: float = 1.1,
     geocode_cache_path: Path | None = None,
     timeout: int = 30,
-) -> tuple[int, int, int, int]:
+    filter_to_coordinate_records: bool = False,
+) -> tuple[int, int, int, int, int, int]:
     with input_path.open("r", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f, delimiter=";"))
+
+    removed = 0
+    duplicates_removed = 0
+    coordinate_extended = coordinate_extended_keys(coordinate_records or {})
+    if filter_to_coordinate_records and coordinate_extended:
+        filtered_rows = []
+        for row in rows:
+            if norm(row.get("Via estesa", "")) in coordinate_extended:
+                filtered_rows.append(row)
+            else:
+                removed += 1
+        rows = filtered_rows
+        deduped: dict[str, dict[str, str]] = {}
+        order: list[str] = []
+        for row in rows:
+            row_key = norm(row.get("Via estesa", ""))
+            if row_key in deduped:
+                duplicates_removed += 1
+            else:
+                order.append(row_key)
+            deduped[row_key] = row
+        rows = [deduped[row_key] for row_key in order]
 
     changed = 0
     matched = 0
@@ -572,6 +603,9 @@ def update_csv(
             if update_key in existing_keys:
                 continue
             coords = find_coordinate_record(update, coordinate_records)
+            if filter_to_coordinate_records and not coords:
+                missing_coords += 1
+                continue
             if not coords:
                 if geocode_missing and geocode_session is not None:
                     print(f"Geocoding: {update['provincia']} {update['citta']} {update['via']}")
@@ -608,7 +642,7 @@ def update_csv(
         writer.writeheader()
         writer.writerows(rows)
 
-    return matched, changed, added, missing_coords
+    return matched, changed, added, missing_coords, removed, duplicates_removed
 
 
 def main() -> None:
@@ -666,6 +700,11 @@ def main() -> None:
         help="File cache locale per risultati geocoding.",
     )
     parser.add_argument(
+        "--filter-pdi",
+        action="store_true",
+        help="Tiene nel CSV solo righe presenti nel file PDI/coordinate passato.",
+    )
+    parser.add_argument(
         "--insecure",
         action="store_true",
         help="Disabilita verifica certificato SSL. Usare solo se certificati locali Python sono rotti.",
@@ -690,7 +729,7 @@ def main() -> None:
             pdi_file,
             args.pdi_url,
         )
-    matched, changed, added, missing_coords = update_csv(
+    matched, changed, added, missing_coords, removed, duplicates_removed = update_csv(
         input_path,
         output_path,
         updates,
@@ -700,12 +739,16 @@ def main() -> None:
         geocode_delay=args.geocode_delay,
         geocode_cache_path=Path(args.geocode_cache).expanduser(),
         timeout=args.timeout,
+        filter_to_coordinate_records=args.filter_pdi,
     )
     print(f"Righe sorgente abbinate: {matched}")
     print(f"Campi aggiornati: {changed}")
     if args.add_new:
         print(f"Nuovi distributori aggiunti: {added}")
         print(f"Nuovi senza coordinate: {missing_coords}")
+    if args.filter_pdi:
+        print(f"Righe non operative rimosse: {removed}")
+        print(f"Doppioni Via estesa rimossi: {duplicates_removed}")
     print(f"File scritto: {output_path}")
 
 
