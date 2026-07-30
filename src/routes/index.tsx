@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ChevronUp, ChevronDown, AlertTriangle, MapPinned, X } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
@@ -8,6 +8,8 @@ import { mockPlan, ALL_STATIONS, CITIES } from "@/lib/metan-mock";
 import { Navigation, ExternalLink } from "lucide-react";
 import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
+import type { Language } from "@/lib/i18n";
+import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
 
@@ -49,6 +51,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  const [language, setLanguageState] = useState<Language | null>(null);
   const { ready: stationsReady, error: stationsError } = useStations();
   const [result, setResult] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +64,17 @@ function HomePage() {
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
   const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [mobileFormOpen, setMobileFormOpen] = useState(false);
+  const t = copy[language ?? "it"];
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored === "it" || stored === "en") setLanguageState(stored);
+  }, []);
+
+  const setLanguage = (next: Language) => {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+    setLanguageState(next);
+  };
 
   const runPlan = async (req: PlanRequest) => {
     setLoading(true);
@@ -174,6 +188,29 @@ function HomePage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background">
+      {!language && (
+        <div className="absolute inset-0 z-[3000] flex items-center justify-center bg-background/90 backdrop-blur-md p-5">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-[var(--shadow-panel)] p-5">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-md mb-4">
+              <Fuel className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">{t.chooseTitle}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t.chooseSubtitle}</p>
+            <div className="grid grid-cols-2 gap-2 mt-5">
+              {(["it", "en"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  className="h-12 rounded-xl border border-border bg-secondary/50 text-sm font-semibold text-foreground hover:border-primary hover:bg-primary-soft transition"
+                >
+                  {languageNames[lang]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <Suspense fallback={<div className="w-screen h-screen bg-secondary animate-pulse" />}>
         <MapView
           result={result}
@@ -188,7 +225,7 @@ function HomePage() {
         <div className="absolute inset-0 z-[2500] flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-card border border-border shadow-[var(--shadow-panel)]">
             <div className="h-10 w-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-            <p className="text-sm font-medium text-foreground">Carico distributori…</p>
+            <p className="text-sm font-medium text-foreground">{t.loadingStations}</p>
           </div>
         </div>
       )}
@@ -196,9 +233,9 @@ function HomePage() {
         <div className="absolute inset-0 z-[2500] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <div className="max-w-sm flex flex-col items-center gap-3 p-6 rounded-2xl bg-card border border-destructive/40 shadow-[var(--shadow-panel)] text-center">
             <AlertTriangle className="h-8 w-8 text-destructive" />
-            <p className="text-sm font-semibold">Impossibile caricare i distributori</p>
+            <p className="text-sm font-semibold">{t.stationLoadError}</p>
             <p className="text-xs text-muted-foreground">{stationsError}</p>
-            <p className="text-[11px] text-muted-foreground">Verifica che il file <code>public/distributori.csv</code> esista.</p>
+            <p className="text-[11px] text-muted-foreground">{t.stationLoadHint}</p>
           </div>
         </div>
       )}
@@ -215,8 +252,8 @@ function HomePage() {
               </div>
             </div>
             <div className="text-center">
-              <p className="text-sm font-semibold text-foreground">Calcolo percorso...</p>
-              <p className="text-xs text-muted-foreground mt-1">Cerco le migliori stazioni CNG</p>
+              <p className="text-sm font-semibold text-foreground">{t.calculating}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t.calculatingSub}</p>
             </div>
           </div>
         </div>
@@ -245,7 +282,7 @@ function HomePage() {
           >
             <X className="h-4 w-4" />
           </button>
-          <TripForm onPlan={handlePlan} loading={loading} />
+          <TripForm onPlan={handlePlan} loading={loading} language={language ?? "it"} onLanguageChange={setLanguage} />
         </div>
       </div>
 
@@ -257,7 +294,7 @@ function HomePage() {
           className="md:hidden absolute left-1/2 -translate-x-1/2 top-5 z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
         >
           <MapPinned className="h-4 w-4 text-primary" />
-          Pianifica viaggio
+          {t.planTrip}
         </button>
       )}
 
@@ -268,7 +305,7 @@ function HomePage() {
           className="hidden md:flex absolute top-4 left-4 z-[1000] items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-panel)] transition text-sm font-medium"
         >
           <ChevronUp className="h-4 w-4 rotate-[-90deg]" />
-          Modifica viaggio
+          {t.editTrip}
         </button>
       )}
 
@@ -294,12 +331,12 @@ function HomePage() {
                 {drawerOpen ? (
                   <>
                     <ChevronDown className="h-3 w-3" />
-                    Riduci
+                    {t.reduce}
                   </>
                 ) : (
                   <>
                     <ChevronUp className="h-3 w-3" />
-                    {result.stops.length} {result.stops.length === 1 ? "sosta" : "soste"} · {result.route.distance_km} km
+                    {result.stops.length} {result.stops.length === 1 ? t.stopSingular : t.stopPlural} · {result.route.distance_km} km
                   </>
                 )}
               </div>
@@ -319,6 +356,7 @@ function HomePage() {
                 origin={lastReq?.origin ?? ""}
                 destination={lastReq?.destination ?? ""}
                 mode={lastReq?.mode}
+                language={language ?? "it"}
               />
             )}
           </div>
@@ -360,7 +398,7 @@ function HomePage() {
           className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1100] inline-flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-4 py-2 shadow-[var(--shadow-card)] text-xs font-semibold"
         >
           <ChevronDown className="h-3.5 w-3.5" />
-          Mostra mappa
+          {t.showMap}
         </button>
       )}
 
@@ -371,6 +409,7 @@ function HomePage() {
         isAdded={selectedStation ? forcedStationIds.includes(selectedStation.id) : false}
         onAddStation={handleAddStation}
         onRemoveStation={handleRemoveStation}
+        language={language ?? "it"}
       />
     </div>
   );

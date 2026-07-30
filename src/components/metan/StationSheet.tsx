@@ -2,6 +2,58 @@ import { X, MapPin, Clock, CreditCard, Building2, Plus } from "lucide-react";
 import type { Station, DayKey } from "@/lib/metan-types";
 import { DAY_ORDER, DAY_LABELS_IT, isStationOpenAt, dayKeyFromDate } from "@/lib/metan-types";
 import { Button } from "@/components/ui/button";
+import type { Language } from "@/lib/i18n";
+
+const sheetCopy = {
+  it: {
+    cash: "Contanti",
+    card: "Carta",
+    app: "App",
+    closed: "Chiuso",
+    allDay: "24 ore",
+    status: "Stato:",
+    openNow: "Aperto ora",
+    closedNow: "Chiuso ora",
+    unknown: "Sconosciuto",
+    price: "Prezzo:",
+    operator: "Operatore:",
+    payments: "Pagamenti:",
+    weeklyHours: "Orari settimanali",
+    today: "Oggi",
+    removeRoute: "Rimuovi dal percorso",
+    addRoute: "Aggiungi al percorso",
+    close: "Chiudi",
+    days: DAY_LABELS_IT,
+  },
+  en: {
+    cash: "Cash",
+    card: "Card",
+    app: "App",
+    closed: "Closed",
+    allDay: "24 hours",
+    status: "Status:",
+    openNow: "Open now",
+    closedNow: "Closed now",
+    unknown: "Unknown",
+    price: "Price:",
+    operator: "Operator:",
+    payments: "Payments:",
+    weeklyHours: "Weekly hours",
+    today: "Today",
+    removeRoute: "Remove from route",
+    addRoute: "Add to route",
+    close: "Close",
+    days: {
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+      sunday: "Sunday",
+    },
+  },
+} as const;
 
 interface StationSheetProps {
   station: Station | null;
@@ -10,23 +62,28 @@ interface StationSheetProps {
   onRemoveStation?: (stationId: number) => void;
   isAdded?: boolean;
   canAdd?: boolean;
+  language: Language;
 }
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Contanti",
-  card: "Carta",
-  app: "App",
-};
-
-function formatIntervals(intervals: { open: string; close: string }[] | null): string {
-  if (intervals === null) return "Chiuso";
-  if (!intervals.length) return "Chiuso";
-  if (intervals.length === 1 && intervals[0].open === "00:00" && intervals[0].close === "23:59") return "24 ore";
+function formatIntervals(intervals: { open: string; close: string }[] | null, language: Language): string {
+  const t = sheetCopy[language];
+  if (intervals === null) return t.closed;
+  if (!intervals.length) return t.closed;
+  if (intervals.length === 1 && intervals[0].open === "00:00" && intervals[0].close === "23:59") return t.allDay;
   return intervals.map((i) => `${i.open}–${i.close}`).join(" / ");
 }
 
-export function StationSheet({ station, onClose, onAddStation, onRemoveStation, isAdded, canAdd }: StationSheetProps) {
+function paymentLabel(method: string, language: Language): string {
+  const t = sheetCopy[language];
+  if (method === "cash") return t.cash;
+  if (method === "card") return t.card;
+  if (method === "app") return t.app;
+  return method;
+}
+
+export function StationSheet({ station, onClose, onAddStation, onRemoveStation, isAdded, canAdd, language }: StationSheetProps) {
   if (!station) return null;
+  const t = sheetCopy[language];
 
   const now = new Date();
   const todayKey: DayKey = dayKeyFromDate(now);
@@ -54,6 +111,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             </div>
             <button
               onClick={onClose}
+              title={t.close}
               className="h-8 w-8 rounded-full hover:bg-secondary flex items-center justify-center transition flex-shrink-0"
             >
               <X className="h-4 w-4" />
@@ -63,20 +121,20 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
           <div className="space-y-2.5 text-sm">
             <div className="flex items-center gap-2.5">
               <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-muted-foreground">Stato:</span>
+              <span className="text-muted-foreground">{t.status}</span>
               {openNow === true && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-success text-success-foreground">
-                  Aperto ora
+                  {t.openNow}
                 </span>
               )}
               {openNow === false && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground">
-                  Chiuso ora
+                  {t.closedNow}
                 </span>
               )}
               {openNow === null && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Sconosciuto
+                  {t.unknown}
                 </span>
               )}
               {station.always_open && (
@@ -89,7 +147,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             {station.price != null && (
               <div className="flex items-center gap-2.5">
                 <span className="h-4 w-4 flex items-center justify-center text-muted-foreground font-bold text-sm">€</span>
-                <span className="text-muted-foreground">Prezzo:</span>
+                <span className="text-muted-foreground">{t.price}</span>
                 <span className="font-bold text-base">€ {station.price.toFixed(3)}</span>
                 <span className="text-xs text-muted-foreground">/kg</span>
               </div>
@@ -98,7 +156,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             {station.operator && (
               <div className="flex items-center gap-2.5">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">Operatore:</span>
+                <span className="text-muted-foreground">{t.operator}</span>
                 <span className="font-medium">{station.operator}</span>
               </div>
             )}
@@ -106,11 +164,11 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             {station.payment_methods && station.payment_methods.length > 0 && (
               <div className="flex items-start gap-2.5">
                 <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">Pagamenti:</span>
+                <span className="text-muted-foreground">{t.payments}</span>
                 <div className="flex flex-wrap gap-1">
                   {station.payment_methods.map((p: string) => (
                     <span key={p} className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary">
-                      {PAYMENT_LABELS[p] ?? p}
+                      {paymentLabel(p, language)}
                     </span>
                   ))}
                 </div>
@@ -121,7 +179,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
           {/* Weekly schedule */}
           <div className="mt-5">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-              Orari settimanali
+              {t.weeklyHours}
             </div>
             <div className="rounded-lg border border-border overflow-hidden">
               {DAY_ORDER.map((d) => {
@@ -138,11 +196,11 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                     }`}
                   >
                     <span className={isToday ? "text-foreground" : "text-muted-foreground"}>
-                      {DAY_LABELS_IT[d]}
-                      {isToday && <span className="ml-1.5 text-[10px] uppercase text-primary">Oggi</span>}
+                      {t.days[d]}
+                      {isToday && <span className="ml-1.5 text-[10px] uppercase text-primary">{t.today}</span>}
                     </span>
                     <span className={isClosed ? "text-destructive" : "text-foreground"}>
-                      {formatIntervals(intervals)}
+                      {formatIntervals(intervals, language)}
                     </span>
                   </div>
                 );
@@ -158,7 +216,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                 className="w-full mt-5 h-11 border-destructive/40 text-destructive hover:bg-destructive/10 font-semibold gap-2"
               >
                 <X className="h-4 w-4" />
-                Rimuovi dal percorso
+                {t.removeRoute}
               </Button>
             ) : (
               <Button
@@ -166,7 +224,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                 className="w-full mt-5 h-11 bg-gradient-to-r from-primary to-primary-glow font-semibold gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Aggiungi al percorso
+                {t.addRoute}
               </Button>
             )
           )}

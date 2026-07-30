@@ -3,7 +3,67 @@ import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Re
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { CITIES } from "@/lib/metan-mock";
+import type { Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+
+const resultsCopy = {
+  it: {
+    open: "Aperto",
+    closed: "Chiuso",
+    unknownHours: "Orario sconosciuto",
+    stop: "Tappa",
+    fromStart: "dalla partenza",
+    fromPrev: "dalla sosta precedente",
+    sameDetour: "stessa deviazione",
+    extraTrip: "km al viaggio",
+    detour: "km deviazione",
+    navigate: "Naviga",
+    removeStop: "Rimuovi sosta",
+    hideAlternatives: "Nascondi alternative",
+    changeStation: "Cambia stazione",
+    alternatives: "alternative",
+    stopSingular: "sosta",
+    stopPlural: "soste",
+    edit: "Modifica",
+    routeReadyHelp: "Percorso calcolato. Le stazioni aperte ora lungo la strada sono evidenziate in verde sulla mappa. Tocca un'icona per aggiungerla come sosta.",
+    noStops: "Nessuna sosta necessaria. Hai autonomia sufficiente per arrivare a destinazione.",
+    ready: "Pronto a partire",
+    startNavigation: "Avvia navigazione",
+    arrival: "Arrivo a destinazione",
+    remainingRange: "Autonomia residua",
+    safetyMargin: "Margine di sicurezza richiesto:",
+    notEnoughRange: "Autonomia insufficiente per raggiungere la destinazione",
+    launchWith: "Avvia navigazione con:",
+  },
+  en: {
+    open: "Open",
+    closed: "Closed",
+    unknownHours: "Hours unknown",
+    stop: "Stop",
+    fromStart: "from start",
+    fromPrev: "from previous stop",
+    sameDetour: "same detour",
+    extraTrip: "km extra",
+    detour: "km detour",
+    navigate: "Navigate",
+    removeStop: "Remove stop",
+    hideAlternatives: "Hide alternatives",
+    changeStation: "Change station",
+    alternatives: "alternatives",
+    stopSingular: "stop",
+    stopPlural: "stops",
+    edit: "Edit",
+    routeReadyHelp: "Route calculated. Stations open now along the road are highlighted in green on the map. Tap an icon to add it as a stop.",
+    noStops: "No stop needed. You have enough range to reach your destination.",
+    ready: "Ready to go",
+    startNavigation: "Start navigation",
+    arrival: "Arrival at destination",
+    remainingRange: "Remaining range",
+    safetyMargin: "Required safety margin:",
+    notEnoughRange: "Not enough range to reach destination",
+    launchWith: "Start navigation with:",
+  },
+} as const;
 
 interface ResultsPanelProps {
   result: PlanResult;
@@ -18,6 +78,7 @@ interface ResultsPanelProps {
   origin: string;
   destination: string;
   mode?: "navigate" | "organize";
+  language: Language;
 }
 
 function statusColor(open: boolean | null) {
@@ -25,10 +86,11 @@ function statusColor(open: boolean | null) {
   if (open === false) return "bg-destructive text-destructive-foreground";
   return "bg-muted text-muted-foreground";
 }
-function statusLabel(open: boolean | null) {
-  if (open === true) return "Aperto";
-  if (open === false) return "Chiuso";
-  return "Orario sconosciuto";
+function statusLabel(open: boolean | null, language: Language) {
+  const t = resultsCopy[language];
+  if (open === true) return t.open;
+  if (open === false) return t.closed;
+  return t.unknownHours;
 }
 function borderColor(open: boolean | null) {
   if (open === true) return "border-l-success";
@@ -41,12 +103,15 @@ function AlternativeRow({
   onSwap,
   onHover,
   onLeave,
+  language,
 }: {
   alt: StopAlternative;
   onSwap: () => void;
   onHover: () => void;
   onLeave: () => void;
+  language: Language;
 }) {
+  const t = resultsCopy[language];
   return (
     <button
       type="button"
@@ -61,7 +126,7 @@ function AlternativeRow({
         <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
           <span>{alt.station.city} ({alt.station.province})</span>
           <span className="font-semibold text-foreground">
-            {alt.extra_trip_km > 0 ? `+${alt.extra_trip_km} km al viaggio` : "stessa deviazione"}
+            {alt.extra_trip_km > 0 ? `+${alt.extra_trip_km} ${t.extraTrip}` : t.sameDetour}
           </span>
           {alt.station.price && <span>€ {alt.station.price.toFixed(3)}</span>}
         </div>
@@ -70,7 +135,7 @@ function AlternativeRow({
         "text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap",
         statusColor(alt.is_open_at_eta)
       )}>
-        {statusLabel(alt.is_open_at_eta)}
+        {statusLabel(alt.is_open_at_eta, language)}
       </span>
     </button>
   );
@@ -87,6 +152,7 @@ function StopCard({
   onSwap,
   onAlternativeHover,
   isAdded,
+  language,
 }: {
   stop: Stop;
   highlighted: boolean;
@@ -98,8 +164,10 @@ function StopCard({
   onSwap: (newId: number) => void;
   onAlternativeHover: (stationId: number | null) => void;
   isAdded: boolean;
+  language: Language;
 }) {
   const [showAlts, setShowAlts] = useState(false);
+  const t = resultsCopy[language];
 
   return (
     <div
@@ -123,7 +191,7 @@ function StopCard({
                 {stop.station.name}
                 {isAdded && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
-                    Tappa
+                    {t.stop}
                   </span>
                 )}
               </div>
@@ -136,21 +204,21 @@ function StopCard({
               "text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap",
               statusColor(stop.is_open_at_eta)
             )}>
-              {statusLabel(stop.is_open_at_eta)}
+              {statusLabel(stop.is_open_at_eta, language)}
             </span>
           </div>
 
           <div className="flex items-center gap-3 mt-2.5 text-xs flex-wrap">
             <span className="text-primary font-semibold flex items-center gap-1">
               <Navigation className="h-3 w-3" />
-              {stop.km_from_prev} km {stop.stop_number === 1 ? "dalla partenza" : "dalla sosta precedente"}
+              {stop.km_from_prev} km {stop.stop_number === 1 ? t.fromStart : t.fromPrev}
             </span>
             {stop.station.price && (
               <span className="font-semibold text-foreground">
                 € {stop.station.price.toFixed(3)}/kg
               </span>
             )}
-            <span className="text-muted-foreground">+{stop.detour_km} km deviazione</span>
+            <span className="text-muted-foreground">+{stop.detour_km} {t.detour}</span>
             <span className="text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {stop.eta_label.replace("Arrivo stimato: ", "")}
@@ -166,7 +234,7 @@ function StopCard({
               className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-95 transition"
             >
               <Navigation className="h-3.5 w-3.5" />
-              Naviga
+              {t.navigate}
             </a>
             <button
               type="button"
@@ -177,7 +245,7 @@ function StopCard({
               className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg transition bg-destructive/10 text-destructive border border-destructive/40 hover:bg-destructive/20"
             >
               <X className="h-3.5 w-3.5" />
-              Rimuovi sosta
+              {t.removeStop}
             </button>
           </div>
 
@@ -192,7 +260,7 @@ function StopCard({
                 className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition"
               >
                 <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAlts && "rotate-180")} />
-                {showAlts ? "Nascondi alternative" : `Cambia stazione (${stop.alternatives.length} alternative)`}
+                {showAlts ? t.hideAlternatives : `${t.changeStation} (${stop.alternatives.length} ${t.alternatives})`}
               </button>
               {showAlts && (
                 <div className="mt-2 space-y-1.5">
@@ -203,6 +271,7 @@ function StopCard({
                       onSwap={() => onSwap(alt.station.id)}
                       onHover={() => onAlternativeHover(alt.station.id)}
                       onLeave={() => onAlternativeHover(null)}
+                      language={language}
                     />
                   ))}
                 </div>
@@ -228,7 +297,9 @@ export function ResultsPanel({
   origin,
   destination,
   mode = "organize",
+  language,
 }: ResultsPanelProps) {
+  const t = resultsCopy[language];
   const hours = Math.floor(result.route.duration_min / 60);
   const minutes = result.route.duration_min % 60;
   const forcedSet = new Set(forcedStationIds);
@@ -277,7 +348,7 @@ export function ResultsPanel({
           <div className="flex items-center gap-1.5">
             <Fuel className="h-4 w-4 text-primary" />
             <span className="font-bold">
-              {result.stops.length} {result.stops.length === 1 ? "sosta" : "soste"}
+              {result.stops.length} {result.stops.length === 1 ? t.stopSingular : t.stopPlural}
             </span>
           </div>
         </div>
@@ -288,7 +359,7 @@ export function ResultsPanel({
           className="h-8 gap-1.5 text-xs"
         >
           <Pencil className="h-3 w-3" />
-          Modifica
+          {t.edit}
         </Button>
       </div>
 
@@ -306,11 +377,11 @@ export function ResultsPanel({
         {result.stops.length === 0 && result.warnings.length === 0 && (
           isNavigate ? (
             <div className="rounded-xl border border-border bg-secondary/40 p-4 text-xs text-muted-foreground leading-relaxed">
-              Percorso calcolato. Le <span className="font-semibold text-foreground">stazioni aperte ora</span> lungo la strada sono evidenziate in <span className="font-semibold text-success">verde</span> sulla mappa. Tocca un'icona per aggiungerla come sosta.
+              {t.routeReadyHelp}
             </div>
           ) : (
             <div className="text-center py-6 text-sm text-muted-foreground">
-              Nessuna sosta necessaria. Hai autonomia sufficiente per arrivare a destinazione.
+              {t.noStops}
             </div>
           )
         )}
@@ -330,6 +401,7 @@ export function ResultsPanel({
               onSwap={(newId) => onSwapStation(stop.station.id, newId)}
               onAlternativeHover={onAlternativeHover}
               isAdded={forcedSet.has(stop.station.id) || stop.is_user_added === true}
+              language={language}
             />
           );
         })}
@@ -337,8 +409,8 @@ export function ResultsPanel({
         {/* Arrival card: navigate mode shows only the launch buttons; organize mode shows autonomy */}
         {isNavigate ? (
           <div className="rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br from-primary to-primary-glow">
-            <div className="text-xs opacity-90">Pronto a partire</div>
-            <div className="font-semibold text-base mt-0.5">Avvia navigazione</div>
+            <div className="text-xs opacity-90">{t.ready}</div>
+            <div className="font-semibold text-base mt-0.5">{t.startNavigation}</div>
             <div className="mt-3 flex gap-2">
               <a
                 href={buildMapsUrl("google")}
@@ -367,8 +439,8 @@ export function ResultsPanel({
           )}>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs opacity-90">Arrivo a destinazione</div>
-                <div className="font-semibold text-base mt-0.5">Autonomia residua</div>
+                <div className="text-xs opacity-90">{t.arrival}</div>
+                <div className="font-semibold text-base mt-0.5">{t.remainingRange}</div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold">{remaining}</div>
@@ -376,19 +448,19 @@ export function ResultsPanel({
               </div>
             </div>
             <div className="mt-3 text-[11px] opacity-90">
-              Margine di sicurezza richiesto: {margin} km
+              {t.safetyMargin} {margin} km
             </div>
 
             {!canStart && (
               <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-2 text-xs font-medium">
                 <AlertTriangle className="h-4 w-4" />
-                Autonomia insufficiente per raggiungere la destinazione
+                {t.notEnoughRange}
               </div>
             )}
 
             {canStart && (
               <div className="mt-3 space-y-2">
-                <div className="text-[11px] font-medium opacity-90">Avvia navigazione con:</div>
+                <div className="text-[11px] font-medium opacity-90">{t.launchWith}</div>
                 <div className="flex gap-2">
                   <a
                     href={buildMapsUrl("google")}
