@@ -7,6 +7,11 @@ export const languageNames: Record<Language, string> = {
   en: "English",
 };
 
+export const languageFlags: Record<Language, string> = {
+  it: "🇮🇹",
+  en: "🇬🇧",
+};
+
 export const copy = {
   it: {
     chooseTitle: "Scegli la lingua",

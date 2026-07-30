@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CITIES } from "@/lib/metan-mock";
 import type { PlanRequest } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
-import { languageNames } from "@/lib/i18n";
+import { languageFlags, languageNames } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const formCopy = {
@@ -335,7 +335,8 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
               )}
               title={`${t.language}: ${languageNames[lang]}`}
             >
-              {lang.toUpperCase()}
+              <span aria-hidden="true">{languageFlags[lang]}</span>
+              <span className="ml-1">{lang.toUpperCase()}</span>
             </button>
           ))}
         </div>

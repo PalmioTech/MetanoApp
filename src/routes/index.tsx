@@ -9,7 +9,7 @@ import { Navigation, ExternalLink } from "lucide-react";
 import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
-import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
+import { LANGUAGE_STORAGE_KEY, copy, languageFlags, languageNames } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
 
@@ -202,9 +202,15 @@ function HomePage() {
                   key={lang}
                   type="button"
                   onClick={() => setLanguage(lang)}
-                  className="h-12 rounded-xl border border-border bg-secondary/50 text-sm font-semibold text-foreground hover:border-primary hover:bg-primary-soft transition"
+                  className="relative h-24 overflow-hidden rounded-xl border border-border bg-secondary/50 text-sm font-semibold text-foreground hover:border-primary hover:bg-primary-soft transition"
                 >
-                  {languageNames[lang]}
+                  <span className="absolute -right-2 -bottom-5 text-7xl opacity-25 saturate-125" aria-hidden="true">
+                    {languageFlags[lang]}
+                  </span>
+                  <span className="relative z-10 flex h-full flex-col items-start justify-end gap-1 p-3 text-left">
+                    <span className="text-2xl" aria-hidden="true">{languageFlags[lang]}</span>
+                    <span>{languageNames[lang]}</span>
+                  </span>
                 </button>
               ))}
             </div>
