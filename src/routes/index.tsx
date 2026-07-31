@@ -52,7 +52,7 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [language, setLanguageState] = useState<Language | null>(null);
-  const { ready: stationsReady, error: stationsError } = useStations();
+  const { ready: stationsReady, error: stationsError, updatedAt: stationsUpdatedAt } = useStations();
   const [result, setResult] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [highlighted, setHighlighted] = useState<number | null>(null);
@@ -302,6 +302,17 @@ function HomePage() {
           <MapPinned className="h-4 w-4 text-primary" />
           {t.planTrip}
         </button>
+      )}
+
+      {/* Piccola indicazione della data di aggiornamento dei dati distributori */}
+      {!result && stationsReady && stationsUpdatedAt && (
+        <div className="absolute left-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] z-[900] px-2.5 py-1 rounded-full bg-card/80 backdrop-blur border border-border/60 text-[10px] leading-none text-muted-foreground shadow-sm pointer-events-none">
+        {t.stationsUpdated}{" "}
+        {new Date(stationsUpdatedAt).toLocaleDateString(
+          (language ?? "it") === "it" ? "it-IT" : "en-GB",
+          { day: "2-digit", month: "2-digit", year: "numeric" }
+        )}
+        </div>
       )}
 
       {/* Compact "edit" chip when form collapsed (desktop) */}

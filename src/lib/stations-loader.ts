@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import type { DayHours, DayKey, Station, WeeklyHours } from "./metan-types";
 
 /**
@@ -123,23 +124,28 @@ export class StationsLoadError extends Error {
   }
 }
 
-async function fetchAndParse(): Promise<Station[]> {
-  let res: Response;
+async function fetchText(url: string, timeoutMs: number): Promise<{ text: string; lastModified: string | null }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    res = await fetch("/distributori.csv", { cache: "no-cache" });
+    const res = await fetch(url, { cache: "no-cache", signal: ctrl.signal });
+    if (!res.ok) {
+      throw new StationsLoadError(`Errore HTTP ${res.status} caricando ${url}`);
+    }
+    const text = await res.text();
+    if (!text || text.length < 50) {
+      throw new StationsLoadError(`File ${url} vuoto o troppo corto`);
+    }
+    return { text, lastModified: res.headers.get("last-modified") };
   } catch (e) {
-    throw new StationsLoadError("Impossibile scaricare /distributori.csv", e);
+    if (e instanceof StationsLoadError) throw e;
+    throw new StationsLoadError(`Impossibile scaricare ${url}`, e);
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) {
-    throw new StationsLoadError(
-      `Errore HTTP ${res.status} caricando /distributori.csv`,
-    );
-  }
-  const text = await res.text();
-  if (!text || text.length < 50) {
-    throw new StationsLoadError("File /distributori.csv vuoto o troppo corto");
-  }
+}
 
+function parseCsvText(text: string): Station[] {
   const parsed = Papa.parse<CsvRow>(text, {
     header: true,
     delimiter: ";",
@@ -167,6 +173,94 @@ async function fetchAndParse(): Promise<Station[]> {
   if (stations.length === 0) {
     throw new StationsLoadError("CSV parsato ma nessuna stazione valida trovata");
   }
+  return stations;
+}
+
+/**
+ * Il CSV viene rigenerato ogni mattina dal workflow GitHub e pubblicato dal
+ * sito. Sul WEB il path relativo /distributori.csv punta gia' a quel file
+ * aggiornato, quindi non serve fare nulla di diverso. Dentro l'APP NATIVA,
+ * invece, il path relativo punta alla copia impacchettata al momento della
+ * build, che non si aggiornerebbe mai: per questo da nativo proviamo prima il
+ * CSV remoto (via CapacitorHttp, che esegue la richiesta a livello nativo ed
+ * evita il blocco CORS della WebView), poi l'ultima copia scaricata con
+ * successo (localStorage), e solo come ultima spiaggia la copia inclusa
+ * nell'app — che garantisce comunque il funzionamento offline al primo avvio.
+ */
+const REMOTE_CSV_URL = "https://metano-app.vercel.app/distributori.csv";
+const CSV_CACHE_KEY = "metanapp:distributori-csv";
+const CSV_CACHE_DATE_KEY = "metanapp:distributori-csv-date";
+
+/**
+ * Data dell'ultimo aggiornamento dei dati mostrati (ISO), ricavata
+ * dall'header Last-Modified del server — cioe' dal momento in cui il
+ * workflow quotidiano ha pubblicato il CSV. null quando non determinabile
+ * (es. copia impacchettata nella build): in quel caso la UI non mostra nulla.
+ */
+let stationsUpdatedAt: string | null = null;
+
+export function getStationsUpdatedAt(): string | null {
+  return stationsUpdatedAt;
+}
+
+function toIsoOrNull(lastModified: string | null): string | null {
+  if (!lastModified) return null;
+  const d = new Date(lastModified);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+async function fetchRemoteCsvNative(): Promise<{ text: string; lastModified: string | null }> {
+  const resp = await CapacitorHttp.get({
+    url: REMOTE_CSV_URL,
+    connectTimeout: 6000,
+    readTimeout: 6000,
+    responseType: "text",
+  });
+  if (resp.status !== 200) {
+    throw new StationsLoadError(`Errore HTTP ${resp.status} caricando ${REMOTE_CSV_URL}`);
+  }
+  const text = typeof resp.data === "string" ? resp.data : String(resp.data ?? "");
+  if (!text || text.length < 50) {
+    throw new StationsLoadError(`CSV remoto vuoto o troppo corto`);
+  }
+  const headers = resp.headers ?? {};
+  const lastModified = headers["last-modified"] ?? headers["Last-Modified"] ?? null;
+  return { text, lastModified };
+}
+
+async function fetchAndParse(): Promise<Station[]> {
+  if (Capacitor.isNativePlatform()) {
+    // 1) rete: dati del giorno
+    try {
+      const { text, lastModified } = await fetchRemoteCsvNative();
+      const stations = parseCsvText(text);
+      stationsUpdatedAt = toIsoOrNull(lastModified) ?? new Date().toISOString();
+      try {
+        localStorage.setItem(CSV_CACHE_KEY, text);
+        localStorage.setItem(CSV_CACHE_DATE_KEY, stationsUpdatedAt);
+      } catch {
+        /* storage pieno o non disponibile: non e' un errore bloccante */
+      }
+      return stations;
+    } catch (e) {
+      console.warn("[stations-loader] CSV remoto non disponibile, uso il fallback:", e);
+    }
+    // 2) ultima copia scaricata con successo
+    try {
+      const cached = localStorage.getItem(CSV_CACHE_KEY);
+      if (cached) {
+        const stations = parseCsvText(cached);
+        stationsUpdatedAt = localStorage.getItem(CSV_CACHE_DATE_KEY);
+        return stations;
+      }
+    } catch {
+      /* localStorage illeggibile: si passa alla copia impacchettata */
+    }
+    // 3) copia impacchettata nella build (fallback offline al primo avvio)
+  }
+  const { text, lastModified } = await fetchText("/distributori.csv", 10000);
+  const stations = parseCsvText(text);
+  stationsUpdatedAt = toIsoOrNull(lastModified);
   return stations;
 }
 
