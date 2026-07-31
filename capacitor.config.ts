@@ -20,7 +20,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "it.federicopalmieri.metano",
-  appName: "Metano",
+  appName: "MetanApp",
   webDir: "dist/client",
   // server: {
   //   url: "https://metano-route-genius.lovable.app",
