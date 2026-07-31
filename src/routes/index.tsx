@@ -297,7 +297,7 @@ function HomePage() {
         <button
           type="button"
           onClick={() => setMobileFormOpen(true)}
-          className="md:hidden absolute left-1/2 -translate-x-1/2 top-5 z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
+          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
         >
           <MapPinned className="h-4 w-4 text-primary" />
           {t.planTrip}

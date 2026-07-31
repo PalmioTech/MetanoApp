@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:mobile": "vite build --config vite.config.mobile.ts",
+    "ios": "bun run build:mobile && npx cap sync ios",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",

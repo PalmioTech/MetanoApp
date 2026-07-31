@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://metano-route-genius.lovable.app/sitemap.xml
