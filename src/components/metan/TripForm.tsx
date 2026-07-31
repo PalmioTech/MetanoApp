@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CITIES } from "@/lib/metan-mock";
+import { getCurrentPosition } from "@/lib/geolocation";
 import type { PlanRequest } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
 import { languageFlags, languageNames } from "@/lib/i18n";
@@ -23,7 +24,7 @@ const formCopy = {
     addressPlaceholder: "Città, via o indirizzo",
     addresses: "Indirizzi",
     usePosition: "Usa la mia posizione",
-    positionError: "Impossibile ottenere la posizione. Controlla i permessi del browser.",
+    positionError: "Impossibile ottenere la posizione. Controlla i permessi nelle impostazioni del dispositivo.",
     addWaypoint: "Aggiungi tappa intermedia",
     currentRange: "Autonomia attuale (km)",
     maxRange: "Km con il pieno (max)",
@@ -47,7 +48,7 @@ const formCopy = {
     addressPlaceholder: "City, street or address",
     addresses: "Addresses",
     usePosition: "Use my location",
-    positionError: "Unable to get location. Check browser permissions.",
+    positionError: "Unable to get location. Check permissions in your device settings.",
     addWaypoint: "Add intermediate stop",
     currentRange: "Current range (km)",
     maxRange: "Full tank range (km)",
@@ -114,33 +115,28 @@ function CityInput({ value, onChange, onCoordsChange, placeholder, showGeo, lang
     ? CITIES.filter((c) => c.toLowerCase().includes(value.toLowerCase())).slice(0, 4)
     : [];
 
-  const handleGeolocate = () => {
-    if (!navigator.geolocation) return;
+  const handleGeolocate = async () => {
     setGeoLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        onCoordsChange?.({ lat: latitude, lng: longitude });
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await res.json();
-          const label = data.address?.road
-            ? `${data.address.road}, ${data.address.city || data.address.town || data.address.village || ""}`
-            : data.display_name?.split(",").slice(0, 2).join(",").trim() || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          onChange(label);
-        } catch {
-          onChange(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-        }
-        setGeoLoading(false);
-      },
-      () => {
-        setGeoLoading(false);
-        alert(formCopy[language].positionError);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    try {
+      const { lat: latitude, lng: longitude } = await getCurrentPosition();
+      onCoordsChange?.({ lat: latitude, lng: longitude });
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+        );
+        const data = await res.json();
+        const label = data.address?.road
+          ? `${data.address.road}, ${data.address.city || data.address.town || data.address.village || ""}`
+          : data.display_name?.split(",").slice(0, 2).join(",").trim() || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        onChange(label);
+      } catch {
+        onChange(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      }
+    } catch {
+      alert(formCopy[language].positionError);
+    } finally {
+      setGeoLoading(false);
+    }
   };
 
   return (

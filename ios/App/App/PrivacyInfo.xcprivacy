@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- L'app non traccia gli utenti e non usa identificatori pubblicitari -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!--
+	  Nessun dato "raccolto" secondo la definizione Apple: per Apple
+	  "collect" significa trasmettere fuori dal dispositivo. La posizione
+	  viene usata solo in locale per calcolare i distributori vicini e non
+	  viene mai inviata a nessun server. Se in futuro aggiungerai analytics,
+	  crash reporting o un backend che riceve la posizione, questa sezione
+	  va aggiornata di conseguenza.
+	-->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!--
+	  API a "motivazione obbligatoria" usate dal runtime Capacitor.
+	  CA92.1 = accesso a UserDefaults limitato all'app stessa.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
