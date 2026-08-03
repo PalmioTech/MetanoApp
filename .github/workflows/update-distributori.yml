@@ -2,7 +2,11 @@ name: Update distributori CSV
 
 on:
   schedule:
+    # Due passaggi al giorno (orari UTC): se quello delle 5 fallisce per un
+    # inciampo del server MIMIT, quello delle 11 recupera. Se il primo è
+    # riuscito, il secondo non trova differenze e non committa nulla.
     - cron: "0 5 * * *"
+    - cron: "0 11 * * *"
   workflow_dispatch:
 
 permissions:
@@ -19,16 +23,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install deps
-        run: pip install -r requirements.txt
-
-      - name: Update CSV
-        run: python scripts/aggiorna_metanoauto.py public/distributori.csv -o public/distributori.csv --insecure
+      # Lo script usa solo la libreria standard: niente pip install.
+      # Fonte dati: open data MIMIT (IODL 2.0), niente scraping.
+      - name: Update CSV (open data MIMIT)
+        run: python scripts/aggiorna_mimit.py public/distributori.csv -o public/distributori.csv
 
       - name: Commit if changed
         run: |
           git config user.name "metano-bot"
           git config user.email "actions@github.com"
           git add public/distributori.csv
-          git diff --cached --quiet || git commit -m "Update distributori CSV"
+          git diff --cached --quiet || git commit -m "Update distributori CSV (MIMIT)"
           git push
