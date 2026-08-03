@@ -8,7 +8,8 @@ import { CITIES } from "@/lib/metan-mock";
 import { getCurrentPosition } from "@/lib/geolocation";
 import type { PlanRequest } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
-import { languageFlags, languageNames } from "@/lib/i18n";
+import { languageNames } from "@/lib/i18n";
+import { FlagIcon } from "@/components/metan/FlagIcon";
 import { cn } from "@/lib/utils";
 
 const formCopy = {
@@ -326,12 +327,12 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
               type="button"
               onClick={() => onLanguageChange(lang)}
               className={cn(
-                "h-7 px-2 rounded-full text-[11px] font-semibold transition",
+                "h-7 px-2 rounded-full text-[11px] font-semibold transition inline-flex items-center",
                 language === lang ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               )}
               title={`${t.language}: ${languageNames[lang]}`}
             >
-              <span aria-hidden="true">{languageFlags[lang]}</span>
+              <FlagIcon lang={lang} className="h-3 w-[18px]" />
               <span className="ml-1">{lang.toUpperCase()}</span>
             </button>
           ))}

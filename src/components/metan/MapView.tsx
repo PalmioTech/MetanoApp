@@ -224,10 +224,20 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
     return out;
   }, [bounds, zoom, recommendedIds, result, highlightedAltIds]);
 
+  // Su schermi verticali (telefono) il fit sull'intera Italia forza uno zoom
+  // troppo basso: per far entrare tutta la larghezza della penisola, in
+  // altezza compare mezza Europa. Meglio partire centrati sull'Italia a zoom
+  // fisso; su desktop (schermo largo) il fit sui bounds resta la scelta giusta.
+  const isMobileViewport = typeof window !== "undefined" && window.innerWidth < 768;
+
   return (
     <MapContainer
-      bounds={L.latLngBounds([35.4, 6.5], [47.1, 18.6])}
-      boundsOptions={{ padding: [20, 20] }}
+      {...(isMobileViewport
+        ? { center: [42.0, 12.5] as [number, number], zoom: 6 }
+        : {
+            bounds: L.latLngBounds([35.4, 6.5], [47.1, 18.6]),
+            boundsOptions: { padding: [20, 20] },
+          })}
       className="h-screen w-screen"
       zoomControl={false}
     >

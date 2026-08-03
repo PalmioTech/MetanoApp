@@ -9,7 +9,8 @@ import { Navigation, ExternalLink } from "lucide-react";
 import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
-import { LANGUAGE_STORAGE_KEY, copy, languageFlags, languageNames } from "@/lib/i18n";
+import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
+import { FlagIcon } from "@/components/metan/FlagIcon";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
 
@@ -69,6 +70,34 @@ function HomePage() {
   useEffect(() => {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (stored === "it" || stored === "en") setLanguageState(stored);
+  }, []);
+
+  // Su iOS la WebView scrolla tutta la pagina quando compare la tastiera per
+  // tenere visibile il campo attivo, ma alla chiusura non sempre torna a
+  // posto: il pannello resta spostato in alto e la X finisce fuori schermo.
+  // Rimedio: appena un campo perde il focus o la tastiera sparisce,
+  // riportiamo esplicitamente lo scroll a zero.
+  useEffect(() => {
+    const reset = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    const onFocusOut = () => {
+      window.setTimeout(reset, 100);
+    };
+    const vv = window.visualViewport;
+    const onVvResize = () => {
+      // l'altezza visibile e' tornata (quasi) quella della finestra:
+      // la tastiera si e' chiusa, anche senza blur (es. swipe verso il basso)
+      if (vv && vv.height >= window.innerHeight - 60) window.setTimeout(reset, 50);
+    };
+    document.addEventListener("focusout", onFocusOut);
+    vv?.addEventListener("resize", onVvResize);
+    return () => {
+      document.removeEventListener("focusout", onFocusOut);
+      vv?.removeEventListener("resize", onVvResize);
+    };
   }, []);
 
   const setLanguage = (next: Language) => {
@@ -204,11 +233,9 @@ function HomePage() {
                   onClick={() => setLanguage(lang)}
                   className="relative h-24 overflow-hidden rounded-xl border border-border bg-secondary/50 text-sm font-semibold text-foreground hover:border-primary hover:bg-primary-soft transition"
                 >
-                  <span className="absolute -right-2 -bottom-5 text-7xl opacity-25 saturate-125" aria-hidden="true">
-                    {languageFlags[lang]}
-                  </span>
+                  <FlagIcon lang={lang} className="absolute -right-3 -bottom-4 h-16 w-24 opacity-20 rotate-[-8deg]" />
                   <span className="relative z-10 flex h-full flex-col items-start justify-end gap-1 p-3 text-left">
-                    <span className="text-2xl" aria-hidden="true">{languageFlags[lang]}</span>
+                    <FlagIcon lang={lang} className="h-5 w-8 shadow-sm" />
                     <span>{languageNames[lang]}</span>
                   </span>
                 </button>
@@ -278,12 +305,12 @@ function HomePage() {
           formCollapsed && "md:opacity-0 md:pointer-events-none md:-translate-x-4"
         )}
       >
-        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto px-5 pb-5 pt-16 md:p-6 relative">
-          {/* Mobile close button */}
+        <div className="bg-card md:rounded-2xl shadow-[var(--shadow-panel)] border border-border h-full overflow-y-auto px-5 pb-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:p-6 relative">
+          {/* Mobile close button — sotto la Dynamic Island grazie al safe-area inset */}
           <button
             type="button"
             onClick={() => setMobileFormOpen(false)}
-            className="md:hidden absolute top-3 right-3 h-9 w-9 inline-flex items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition"
+            className="md:hidden absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-3 z-10 h-9 w-9 inline-flex items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition"
             aria-label="Chiudi"
           >
             <X className="h-4 w-4" />
@@ -377,6 +404,13 @@ function HomePage() {
               />
             )}
           </div>
+        </div>
+      )}
+
+      {/* Mobile: percorso cercato, centrato in alto sulla mappa (drawer chiuso) */}
+      {result && !drawerOpen && lastReq && (
+        <div className="md:hidden absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[1100] max-w-[85vw] px-4 py-2 rounded-full bg-card/95 backdrop-blur border border-border shadow-[var(--shadow-card)] text-xs font-semibold text-foreground truncate pointer-events-none">
+        {lastReq.origin} → {lastReq.destination}
         </div>
       )}
 
