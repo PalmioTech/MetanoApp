@@ -5,6 +5,11 @@ import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { CITIES } from "@/lib/metan-mock";
 import type { Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { Capacitor } from "@capacitor/core";
+
+// Su Android il pulsante "Apple Maps" non ha senso: l'app non esiste e il
+// link aprirebbe la versione web nel browser. Meglio solo Google Maps.
+const showAppleMaps = Capacitor.getPlatform() !== "android";
 
 const resultsCopy = {
   it: {
@@ -421,6 +426,7 @@ export function ResultsPanel({
                 <ExternalLink className="h-3.5 w-3.5" />
                 Google Maps
               </a>
+              {showAppleMaps && (
               <a
                 href={buildMapsUrl("apple")}
                 target="_blank"
@@ -430,6 +436,7 @@ export function ResultsPanel({
                 <ExternalLink className="h-3.5 w-3.5" />
                 Apple Maps
               </a>
+              )}
             </div>
           </div>
         ) : (
@@ -471,6 +478,7 @@ export function ResultsPanel({
                     <ExternalLink className="h-3.5 w-3.5" />
                     Google Maps
                   </a>
+                  {showAppleMaps && (
                   <a
                     href={buildMapsUrl("apple")}
                     target="_blank"
@@ -480,6 +488,7 @@ export function ResultsPanel({
                     <ExternalLink className="h-3.5 w-3.5" />
                     Apple Maps
                   </a>
+                  )}
                 </div>
               </div>
             )}

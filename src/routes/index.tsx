@@ -10,7 +10,9 @@ import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
 import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
+import { Capacitor } from "@capacitor/core";
 import { FlagIcon } from "@/components/metan/FlagIcon";
+import { Onboarding, isTutorialDone } from "@/components/metan/Onboarding";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
 
@@ -65,7 +67,16 @@ function HomePage() {
   const [hoveredAltId, setHoveredAltId] = useState<number | null>(null);
   const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [mobileFormOpen, setMobileFormOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const t = copy[language ?? "it"];
+
+  // Tutorial alla prima apertura: solo mobile, dopo la scelta della lingua,
+  // a distributori caricati (cosi' gli elementi da illuminare esistono).
+  useEffect(() => {
+    if (language && stationsReady && !result && window.innerWidth < 768 && !isTutorialDone()) {
+      setShowTutorial(true);
+    }
+  }, [language, stationsReady, result]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -324,6 +335,7 @@ function HomePage() {
         <button
           type="button"
           onClick={() => setMobileFormOpen(true)}
+          data-tutorial="plan"
           className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
         >
           <MapPinned className="h-4 w-4 text-primary" />
@@ -333,7 +345,7 @@ function HomePage() {
 
       {/* Piccola indicazione della data di aggiornamento dei dati distributori */}
       {!result && stationsReady && stationsUpdatedAt && (
-        <div className="absolute left-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] z-[900] px-2.5 py-1 rounded-full bg-card/80 backdrop-blur border border-border/60 text-[10px] leading-none text-muted-foreground shadow-sm pointer-events-none">
+        <div data-tutorial="updated" className="absolute left-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] z-[900] px-2.5 py-1 rounded-full bg-card/80 backdrop-blur border border-border/60 text-[10px] leading-none text-muted-foreground shadow-sm pointer-events-none">
         {t.stationsUpdated}{" "}
         {new Date(stationsUpdatedAt).toLocaleDateString(
           (language ?? "it") === "it" ? "it-IT" : "en-GB",
@@ -407,6 +419,18 @@ function HomePage() {
         </div>
       )}
 
+      {/* Tutorial prima apertura (coach marks) */}
+      {showTutorial && language && (
+        <Onboarding
+          language={language}
+          onClose={() => {
+            setShowTutorial(false);
+            setMobileFormOpen(false);
+          }}
+          onRequireForm={setMobileFormOpen}
+        />
+      )}
+
       {/* Mobile: percorso cercato, centrato in alto sulla mappa (drawer chiuso) */}
       {result && !drawerOpen && lastReq && (
         <div className="md:hidden absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[1100] max-w-[85vw] px-4 py-2 rounded-full bg-card/95 backdrop-blur border border-border shadow-[var(--shadow-card)] text-xs font-semibold text-foreground truncate pointer-events-none">
@@ -428,7 +452,7 @@ function HomePage() {
               Google Maps
             </a>
           )}
-          {buildAppleMapsUrl() && (
+          {buildAppleMapsUrl() && Capacitor.getPlatform() !== "android" && (
             <a
               href={buildAppleMapsUrl()!}
               target="_blank"
@@ -446,7 +470,7 @@ function HomePage() {
       {result && drawerOpen && (
         <button
           onClick={() => setDrawerOpen(false)}
-          className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1100] inline-flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-4 py-2 shadow-[var(--shadow-card)] text-xs font-semibold"
+          className="md:hidden absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[1100] inline-flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-4 py-2 shadow-[var(--shadow-card)] text-xs font-semibold"
         >
           <ChevronDown className="h-3.5 w-3.5" />
           {t.showMap}

@@ -26,6 +26,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>La posizione serve a mostrarti i distributori di metano più vicini e a calcolare il percorso di rifornimento. L'app non usa la posizione in background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>La posizione serve a mostrarti i distributori di metano più vicini e a calcolare il percorso di rifornimento.</string>
 	<key>UILaunchStoryboardName</key>
