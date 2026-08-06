@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { ChevronUp, ChevronDown, AlertTriangle, MapPinned, X } from "lucide-react";
+import { ChevronUp, ChevronDown, AlertTriangle, MapPinned, X, LocateFixed, Loader2 } from "lucide-react";
 import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
 import { StationSheet } from "@/components/metan/StationSheet";
@@ -13,6 +13,7 @@ import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
 import { Capacitor } from "@capacitor/core";
 import { FlagIcon } from "@/components/metan/FlagIcon";
 import { Onboarding, isTutorialDone } from "@/components/metan/Onboarding";
+import { getCurrentPosition } from "@/lib/geolocation";
 import { cn } from "@/lib/utils";
 import { Fuel } from "lucide-react";
 
@@ -68,7 +69,25 @@ function HomePage() {
   const [excludedStationIds, setExcludedStationIds] = useState<number[]>([]);
   const [mobileFormOpen, setMobileFormOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [nearError, setNearError] = useState<string | null>(null);
   const t = copy[language ?? "it"];
+
+  // "Vicino a me": posizione -> la mappa vola sulla zona dell'utente
+  const handleNearMe = async () => {
+    if (locating) return;
+    setLocating(true);
+    setNearError(null);
+    try {
+      const pos = await getCurrentPosition();
+      window.dispatchEvent(new CustomEvent("metanapp:flyto", { detail: pos }));
+    } catch {
+      setNearError(t.nearMeError);
+      window.setTimeout(() => setNearError(null), 4000);
+    } finally {
+      setLocating(false);
+    }
+  };
 
   // Tutorial alla prima apertura: solo mobile, dopo la scelta della lingua,
   // a distributori caricati (cosi' gli elementi da illuminare esistono).
@@ -330,17 +349,40 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Mobile: floating CTA over the map to open the search modal (only when no result) */}
+      {/* Mobile: floating CTA over the map (only when no result) */}
       {!result && !mobileFormOpen && stationsReady && (
-        <button
-          type="button"
-          onClick={() => setMobileFormOpen(true)}
-          data-tutorial="plan"
-          className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] inline-flex items-center gap-2 px-5 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
-        >
-          <MapPinned className="h-4 w-4 text-primary" />
-          {t.planTrip}
-        </button>
+        <div className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleNearMe}
+            disabled={locating}
+            data-tutorial="near"
+            className="inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150 disabled:opacity-70"
+          >
+            {locating ? (
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            ) : (
+              <LocateFixed className="h-4 w-4 text-primary" />
+            )}
+            {t.nearMe}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileFormOpen(true)}
+            data-tutorial="plan"
+            className="inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
+          >
+            <MapPinned className="h-4 w-4 text-primary" />
+            {t.planTrip}
+          </button>
+        </div>
+      )}
+
+      {/* Avviso breve se la posizione non arriva */}
+      {nearError && (
+        <div className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] z-[1100] max-w-[85vw] px-4 py-2 rounded-full bg-destructive text-destructive-foreground text-xs font-medium shadow-lg text-center">
+        {nearError}
+        </div>
       )}
 
       {/* Piccola indicazione della data di aggiornamento dei dati distributori */}

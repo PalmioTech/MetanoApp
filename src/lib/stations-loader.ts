@@ -210,10 +210,15 @@ function toIsoOrNull(lastModified: string | null): string | null {
 }
 
 async function fetchRemoteCsvNative(): Promise<{ text: string; lastModified: string | null }> {
+  // Cache-buster: un parametro sempre diverso rende la richiesta unica e
+  // impedisce alla cache HTTP di iOS (URLSession) di rispondere con una
+  // copia vecchia senza interrogare il server. Il server ignora il parametro.
+  const url = `${REMOTE_CSV_URL}?t=${Date.now()}`;
   const resp = await CapacitorHttp.get({
-    url: REMOTE_CSV_URL,
-    connectTimeout: 6000,
-    readTimeout: 6000,
+    url,
+    headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    connectTimeout: 10000,
+    readTimeout: 10000,
     responseType: "text",
   });
   if (resp.status !== 200) {

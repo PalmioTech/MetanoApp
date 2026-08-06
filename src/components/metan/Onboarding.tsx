@@ -24,6 +24,7 @@ type Rect = { top: number; left: number; width: number; height: number };
 
 type TextKeys =
   | "tutorialWelcome"
+  | "tutorialNear"
   | "tutorialPlan"
   | "tutorialNaviga"
   | "tutorialOrganizza"
@@ -42,6 +43,7 @@ type Step = {
 
 const STEPS: Step[] = [
   { target: null, key: "tutorialWelcome", centerSpot: true },
+  { target: "[data-tutorial='near']", key: "tutorialNear" },
   { target: "[data-tutorial='plan']", key: "tutorialPlan" },
   { target: "[role='tablist'] [role='tab']:first-child", key: "tutorialNaviga", form: true },
   { target: "[role='tablist'] [role='tab']:last-child", key: "tutorialOrganizza", form: true },

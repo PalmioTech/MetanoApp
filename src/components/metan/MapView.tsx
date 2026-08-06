@@ -1,10 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
 import { isStationOpenAt } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
+
+/**
+ * Ascolta l'evento "metanapp:flyto" (lanciato dal pulsante "Vicino a me"),
+ * vola sulla posizione ricevuta e mostra il pallino blu dell'utente.
+ * Un evento globale evita di far viaggiare props attraverso il lazy-load.
+ */
+function FlyToUser() {
+  const map = useMap();
+  const [pos, setPos] = useState<[number, number] | null>(null);
+  useEffect(() => {
+    const onFly = (e: Event) => {
+      const d = (e as CustomEvent).detail as { lat: number; lng: number };
+      setPos([d.lat, d.lng]);
+      map.flyTo([d.lat, d.lng], 12, { duration: 0.9 });
+    };
+    window.addEventListener("metanapp:flyto", onFly);
+    return () => window.removeEventListener("metanapp:flyto", onFly);
+  }, [map]);
+  if (!pos) return null;
+  return (
+    <CircleMarker
+      center={pos}
+      radius={9}
+      pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#2563eb", fillOpacity: 1 }}
+    />
+  );
+}
 
 function isHighwayStation(s: Station): boolean {
   const n = s.name.toLowerCase();
@@ -303,6 +330,7 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
         />
       ))}
 
+      <FlyToUser />
       <FitBounds result={result} />
       <FitToStopAlternatives result={result} stopNumber={highlightedStopNumber} />
     </MapContainer>

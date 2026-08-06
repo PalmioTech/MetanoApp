@@ -1,4 +1,5 @@
-import { X, MapPin, Clock, CreditCard, Building2, Plus } from "lucide-react";
+import { X, MapPin, Clock, CreditCard, Building2, Plus, Navigation } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import type { Station, DayKey } from "@/lib/metan-types";
 import { DAY_ORDER, DAY_LABELS_IT, isStationOpenAt, dayKeyFromDate } from "@/lib/metan-types";
 import { Button } from "@/components/ui/button";
@@ -206,6 +207,30 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                 );
               })}
             </div>
+          </div>
+
+          {/* Naviga fino a questo distributore */}
+          <div className="mt-5 flex gap-2">
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-glow text-primary-foreground text-sm font-semibold active:scale-[0.98] transition"
+            >
+              <Navigation className="h-4 w-4" />
+              Google Maps
+            </a>
+            {Capacitor.getPlatform() !== "android" && (
+              <a
+                href={`https://maps.apple.com/?daddr=${station.lat},${station.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-semibold active:scale-[0.98] transition"
+              >
+                <Navigation className="h-4 w-4" />
+                Apple Maps
+              </a>
+            )}
           </div>
 
           {canAdd && (
