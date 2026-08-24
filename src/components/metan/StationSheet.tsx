@@ -20,6 +20,7 @@ const sheetCopy = {
     operator: "Operatore:",
     payments: "Pagamenti:",
     weeklyHours: "Orari settimanali",
+    selfService: "Self service",
     today: "Oggi",
     removeRoute: "Rimuovi dal percorso",
     addRoute: "Aggiungi al percorso",
@@ -40,6 +41,7 @@ const sheetCopy = {
     operator: "Operator:",
     payments: "Payments:",
     weeklyHours: "Weekly hours",
+    selfService: "Self-service",
     today: "Today",
     removeRoute: "Remove from route",
     addRoute: "Add to route",
@@ -136,6 +138,11 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
               {openNow === null && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                   {t.unknown}
+                </span>
+              )}
+              {station.self_service && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                  {t.selfService}
                 </span>
               )}
               {station.always_open && (

@@ -351,13 +351,13 @@ function HomePage() {
 
       {/* Mobile: floating CTA over the map (only when no result) */}
       {!result && !mobileFormOpen && stationsReady && (
-        <div className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] flex items-center gap-2">
+        <div className="md:hidden absolute left-1/2 -translate-x-1/2 bottom-[calc(2.25rem+env(safe-area-inset-bottom,0px))] z-[1100] flex items-center gap-2 w-[calc(100vw-2.5rem)] max-w-sm">
           <button
             type="button"
             onClick={handleNearMe}
             disabled={locating}
             data-tutorial="near"
-            className="inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150 disabled:opacity-70"
+            className="flex-1 justify-center inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150 disabled:opacity-70"
           >
             {locating ? (
               <Loader2 className="h-4 w-4 text-primary animate-spin" />
@@ -370,7 +370,7 @@ function HomePage() {
             type="button"
             onClick={() => setMobileFormOpen(true)}
             data-tutorial="plan"
-            className="inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
+            className="flex-1 justify-center inline-flex items-center gap-2 px-4 h-11 rounded-full bg-card/85 text-foreground font-medium text-sm whitespace-nowrap shadow-[var(--shadow-card)] border border-border/60 backdrop-blur-md active:scale-[0.96] transition-transform duration-150"
           >
             <MapPinned className="h-4 w-4 text-primary" />
             {t.planTrip}

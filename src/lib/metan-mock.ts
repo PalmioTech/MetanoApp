@@ -93,6 +93,14 @@ export async function ensureStationsLoaded(): Promise<void> {
   rebuildIndexes(stations);
 }
 
+/**
+ * Applica i dati freschi arrivati dal refresh in sottofondo (evento
+ * "metanapp:stations-refreshed"): ricostruisce stazioni e indici a caldo.
+ */
+export function applyRefreshedStations(stations: Station[]): void {
+  if (stations && stations.length > 0) rebuildIndexes(stations);
+}
+
 export function isStationsReady(): boolean {
   return stationsReady;
 }

@@ -49,7 +49,7 @@ RAGGIO_ABBINAMENTO_METRI = 250.0
 
 OUTPUT_HEADER = [
     "lat", "Long", "Via estesa", "provincia", "citta", "via",
-    "prezzo", "feriali", "festivi", "prefestivi",
+    "prezzo", "feriali", "festivi", "prefestivi", "self",
 ]
 
 
@@ -95,15 +95,17 @@ def indice(header: list[str], nome: str) -> int:
     return nomi.index(nome.lower())
 
 
-def prezzi_metano(testo: str) -> dict[str, float]:
-    """idImpianto -> prezzo metano minimo (self o servito)."""
+def prezzi_metano(testo: str) -> tuple[dict[str, float], set[str]]:
+    """(idImpianto -> prezzo metano minimo, insieme degli id con prezzo self)."""
     header, reader = righe_mimit(testo)
     i_id = indice(header, "idImpianto")
     i_desc = indice(header, "descCarburante")
     i_prezzo = indice(header, "prezzo")
+    i_self = indice(header, "isSelf")
     prezzi: dict[str, float] = {}
+    self_ids: set[str] = set()
     for riga in reader:
-        if len(riga) <= max(i_id, i_desc, i_prezzo):
+        if len(riga) <= max(i_id, i_desc, i_prezzo, i_self):
             continue
         if riga[i_desc].strip().lower() != "metano":
             continue
@@ -114,9 +116,11 @@ def prezzi_metano(testo: str) -> dict[str, float]:
         if not (0.1 < p < 10):  # scarto refusi tipo 0 o 999
             continue
         chiave = riga[i_id].strip()
+        if riga[i_self].strip() == "1":
+            self_ids.add(chiave)
         if chiave not in prezzi or p < prezzi[chiave]:
             prezzi[chiave] = p
-    return prezzi
+    return prezzi, self_ids
 
 
 def anagrafica(testo: str) -> dict[str, dict]:
@@ -217,8 +221,8 @@ def main() -> int:
     args = ap.parse_args()
 
     print("[1/4] scarico prezzi...", file=sys.stderr)
-    prezzi = prezzi_metano(scarica(PREZZI_URL, insecure=args.insecure))
-    print(f"      impianti con prezzo metano: {len(prezzi)}", file=sys.stderr)
+    prezzi, self_ids = prezzi_metano(scarica(PREZZI_URL, insecure=args.insecure))
+    print(f"      impianti con prezzo metano: {len(prezzi)} (self: {len(self_ids)})", file=sys.stderr)
 
     print("[2/4] scarico anagrafica...", file=sys.stderr)
     impianti = anagrafica(scarica(ANAGRAFICA_URL, insecure=args.insecure))
@@ -247,6 +251,7 @@ def main() -> int:
             imp["indirizzo"],
             f"{prezzo:.3f}",
             feriali, festivi, prefestivi,
+            "1" if id_imp in self_ids else "",
         ])
 
     print(f"      stazioni metano georeferenziate: {len(righe)} "

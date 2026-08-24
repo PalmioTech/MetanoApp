@@ -23,6 +23,7 @@ type CsvRow = {
   feriali: string;    // Mon-Fri
   festivi: string;    // Sunday
   prefestivi: string; // Saturday
+  self?: string;      // "1" se il MIMIT registra un prezzo self-service
 };
 
 function parsePrice(raw: string | undefined | null): number | null {
@@ -50,11 +51,14 @@ function parseDayHours(raw: string | undefined | null): DayHours {
   const parts = t.split("/").map((p) => p.trim()).filter(Boolean);
   const intervals: { open: string; close: string }[] = [];
   for (const p of parts) {
-    // Tolerate "07:30-12:15-14:30-19:00" by pairing all matched HH:MM tokens.
-    const times = p.match(/\d{1,2}:\d{2}/g);
+    // Tolerate "07:30-12:15-14:30-19:00" by pairing all matched tokens.
+    // Accetta sia i due punti sia il punto come separatore ("07.30-12.30",
+    // presente in alcune righe del CSV) e normalizza a HH:MM.
+    const times = p.match(/\d{1,2}[:.]\d{2}/g);
     if (!times) continue;
-    for (let i = 0; i + 1 < times.length; i += 2) {
-      intervals.push({ open: times[i], close: times[i + 1] });
+    const norm = times.map((x) => x.replace(".", ":"));
+    for (let i = 0; i + 1 < norm.length; i += 2) {
+      intervals.push({ open: norm[i], close: norm[i + 1] });
     }
   }
   return intervals.length ? intervals : null;
@@ -109,6 +113,7 @@ function rowToStation(row: CsvRow, id: number): Station | null {
     lng,
     opening_hours: hours,
     always_open,
+    self_service: (row.self || "").trim() === "1",
     operator: null,
     payment_methods: [],
   };
@@ -233,35 +238,65 @@ async function fetchRemoteCsvNative(): Promise<{ text: string; lastModified: str
   return { text, lastModified };
 }
 
-async function fetchAndParse(): Promise<Station[]> {
-  if (Capacitor.isNativePlatform()) {
-    // 1) rete: dati del giorno
+function saveCsvToLocal(text: string, dateIso: string): void {
+  stationsUpdatedAt = dateIso;
+  try {
+    localStorage.setItem(CSV_CACHE_KEY, text);
+    localStorage.setItem(CSV_CACHE_DATE_KEY, dateIso);
+  } catch {
+    /* storage pieno o non disponibile: non e' un errore bloccante */
+  }
+}
+
+/**
+ * Aggiornamento in sottofondo: parte 1,5s dopo l'avvio (per non contendere
+ * risorse al primo render), scarica il CSV del giorno e, se arriva, scambia i
+ * dati a caldo notificando la UI con l'evento "metanapp:stations-refreshed".
+ * Se fallisce, pazienza: l'utente resta sui dati della copia locale.
+ */
+let refreshScheduled = false;
+function scheduleBackgroundRefresh(): void {
+  if (refreshScheduled) return;
+  refreshScheduled = true;
+  setTimeout(async () => {
     try {
       const { text, lastModified } = await fetchRemoteCsvNative();
       const stations = parseCsvText(text);
-      stationsUpdatedAt = toIsoOrNull(lastModified) ?? new Date().toISOString();
-      try {
-        localStorage.setItem(CSV_CACHE_KEY, text);
-        localStorage.setItem(CSV_CACHE_DATE_KEY, stationsUpdatedAt);
-      } catch {
-        /* storage pieno o non disponibile: non e' un errore bloccante */
+      saveCsvToLocal(text, toIsoOrNull(lastModified) ?? new Date().toISOString());
+      cache = stations;
+      window.dispatchEvent(new CustomEvent("metanapp:stations-refreshed", { detail: stations }));
+    } catch (e) {
+      console.warn("[stations-loader] refresh in sottofondo non riuscito:", e);
+    }
+  }, 1500);
+}
+
+async function fetchAndParse(): Promise<Station[]> {
+  if (Capacitor.isNativePlatform()) {
+    // 1) ISTANTANEO: l'ultima copia scaricata. L'avvio non aspetta mai la
+    //    rete: i distributori compaiono subito, il CSV del giorno arriva in
+    //    sottofondo e viene scambiato a caldo appena pronto.
+    try {
+      const cachedText = localStorage.getItem(CSV_CACHE_KEY);
+      if (cachedText) {
+        const stations = parseCsvText(cachedText);
+        stationsUpdatedAt = localStorage.getItem(CSV_CACHE_DATE_KEY);
+        scheduleBackgroundRefresh();
+        return stations;
       }
+    } catch {
+      /* cache illeggibile: si prosegue con la rete */
+    }
+    // 2) primo avvio in assoluto: serve la rete
+    try {
+      const { text, lastModified } = await fetchRemoteCsvNative();
+      const stations = parseCsvText(text);
+      saveCsvToLocal(text, toIsoOrNull(lastModified) ?? new Date().toISOString());
       return stations;
     } catch (e) {
       console.warn("[stations-loader] CSV remoto non disponibile, uso il fallback:", e);
     }
-    // 2) ultima copia scaricata con successo
-    try {
-      const cached = localStorage.getItem(CSV_CACHE_KEY);
-      if (cached) {
-        const stations = parseCsvText(cached);
-        stationsUpdatedAt = localStorage.getItem(CSV_CACHE_DATE_KEY);
-        return stations;
-      }
-    } catch {
-      /* localStorage illeggibile: si passa alla copia impacchettata */
-    }
-    // 3) copia impacchettata nella build (fallback offline al primo avvio)
+    // 3) copia impacchettata nella build (offline al primissimo avvio)
   }
   const { text, lastModified } = await fetchText("/distributori.csv", 10000);
   const stations = parseCsvText(text);

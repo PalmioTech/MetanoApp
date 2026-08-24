@@ -18,6 +18,8 @@ export type Station = {
   operator?: string | null;
   opening_hours: WeeklyHours;
   always_open: boolean;
+  /** true se il MIMIT registra un prezzo self-service per l'impianto */
+  self_service?: boolean;
   payment_methods?: string[];
 };
 

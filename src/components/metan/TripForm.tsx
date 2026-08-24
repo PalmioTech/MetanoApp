@@ -435,7 +435,7 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
             type="datetime-local"
             value={departAt}
             onChange={(e) => setDepartAt(e.target.value)}
-            className="h-11 bg-secondary/50 border-secondary"
+            className="h-11 bg-secondary/50 border-secondary w-full min-w-0 max-w-full appearance-none"
           />
         )}
       </div>
