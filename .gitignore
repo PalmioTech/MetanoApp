@@ -33,3 +33,4 @@ dist-ssr
 *.sw?
 *.jks
 *.aab
+.vercel
