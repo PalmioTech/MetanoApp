@@ -20,6 +20,8 @@ export type Station = {
   always_open: boolean;
   /** true se il MIMIT registra un prezzo self-service per l'impianto */
   self_service?: boolean;
+  /** telefono dell'impianto (da OpenStreetMap), null se non disponibile */
+  phone?: string | null;
   payment_methods?: string[];
 };
 

@@ -24,6 +24,7 @@ type CsvRow = {
   festivi: string;    // Sunday
   prefestivi: string; // Saturday
   self?: string;      // "1" se il MIMIT registra un prezzo self-service
+  telefono?: string;  // telefono dell'impianto (da OSM via arricchisci_telefoni.py)
 };
 
 function parsePrice(raw: string | undefined | null): number | null {
@@ -114,6 +115,7 @@ function rowToStation(row: CsvRow, id: number): Station | null {
     opening_hours: hours,
     always_open,
     self_service: (row.self || "").trim() === "1",
+    phone: (row.telefono || "").trim() || null,
     operator: null,
     payment_methods: [],
   };

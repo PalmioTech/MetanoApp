@@ -1,4 +1,4 @@
-import { X, MapPin, Clock, CreditCard, Building2, Plus, Navigation } from "lucide-react";
+import { X, MapPin, Clock, CreditCard, Building2, Plus, Navigation, Phone } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import type { Station, DayKey } from "@/lib/metan-types";
 import { DAY_ORDER, DAY_LABELS_IT, isStationOpenAt, dayKeyFromDate } from "@/lib/metan-types";
@@ -21,6 +21,7 @@ const sheetCopy = {
     payments: "Pagamenti:",
     weeklyHours: "Orari settimanali",
     selfService: "Self service",
+    call: "Chiama",
     today: "Oggi",
     removeRoute: "Rimuovi dal percorso",
     addRoute: "Aggiungi al percorso",
@@ -42,6 +43,7 @@ const sheetCopy = {
     payments: "Payments:",
     weeklyHours: "Weekly hours",
     selfService: "Self-service",
+    call: "Call",
     today: "Today",
     removeRoute: "Remove from route",
     addRoute: "Add to route",
@@ -239,6 +241,17 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
               </a>
             )}
           </div>
+
+          {/* Chiama l'impianto (numero da OpenStreetMap, quando disponibile) */}
+          {station.phone && (
+            <a
+              href={`tel:${station.phone.replace(/[^+\d]/g, "")}`}
+              className="mt-2 h-11 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-semibold active:scale-[0.98] transition"
+            >
+              <Phone className="h-4 w-4" />
+              {t.call} · {station.phone}
+            </a>
+          )}
 
           {canAdd && (
             isAdded ? (

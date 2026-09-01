@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import json
 import math
 import ssl
 import sys
@@ -49,7 +50,7 @@ RAGGIO_ABBINAMENTO_METRI = 250.0
 
 OUTPUT_HEADER = [
     "lat", "Long", "Via estesa", "provincia", "citta", "via",
-    "prezzo", "feriali", "festivi", "prefestivi", "self",
+    "prezzo", "feriali", "festivi", "prefestivi", "self", "telefono",
 ]
 
 
@@ -234,6 +235,15 @@ def main() -> int:
     for v in precedenti:
         griglia.setdefault((int(v["lat"] * 100), int(v["lng"] * 100)), []).append(v)
 
+    # telefoni da data/telefoni.json (generato da arricchisci_telefoni.py);
+    # se il file manca la colonna esce vuota e nulla si rompe
+    try:
+        with open("data/telefoni.json", encoding="utf-8") as f:
+            telefoni = json.load(f)
+    except FileNotFoundError:
+        telefoni = {}
+    print(f"      telefoni disponibili: {len(telefoni)}", file=sys.stderr)
+
     righe, con_orari = [], 0
     for id_imp, prezzo in prezzi.items():
         imp = impianti.get(id_imp)
@@ -252,6 +262,7 @@ def main() -> int:
             f"{prezzo:.3f}",
             feriali, festivi, prefestivi,
             "1" if id_imp in self_ids else "",
+            telefoni.get(id_imp, ""),
         ])
 
     print(f"      stazioni metano georeferenziate: {len(righe)} "
