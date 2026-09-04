@@ -25,6 +25,7 @@ type CsvRow = {
   prefestivi: string; // Saturday
   self?: string;      // "1" se il MIMIT registra un prezzo self-service
   telefono?: string;  // telefono dell'impianto (da OSM via arricchisci_telefoni.py)
+  fonte_orari?: string; // "osm" | "metanoauto" | "" (vedi scripts/applica_orari_osm.py)
 };
 
 function parsePrice(raw: string | undefined | null): number | null {
@@ -42,14 +43,21 @@ function parseCoord(raw: string | undefined | null): number | null {
 
 function parseDayHours(raw: string | undefined | null): DayHours {
   const t = (raw || "").trim();
+  // Vuoto = orario sconosciuto (null). NON e' "chiuso": l'app deve dire
+  // "sconosciuto" e il planner non deve scartare l'impianto.
   if (!t) return null;
-  if (/chius/i.test(t)) return null;
-  // 24h: "00:00-24:00" or "00.00-24.00"
-  if (/0?0[:.]?0?0\s*-\s*24[:.]?0?0/.test(t)) {
+  // "Chiuso" = chiuso tutto il giorno, dato certo -> lista vuota.
+  if (/chius/i.test(t)) return [];
+  // 24h: "00:00-24:00", "00.00-24.00", "24h", "H24", "24 ore"
+  if (/^(24 ?h|h ?24|24 ore)$/i.test(t) || /0?0[:.]?0?0\s*[-–]\s*24[:.]?0?0/.test(t)) {
     return [{ open: "00:00", close: "24:00" }];
   }
-  // Split intervals by '/' first (e.g. "08:00-12:00/15:00-19:00")
-  const parts = t.split("/").map((p) => p.trim()).filter(Boolean);
+  // "07:00/20:00" (una sola coppia separata da slash) = apertura/chiusura,
+  // non due intervalli: normalizzo a "07:00-20:00" prima di spezzare sugli slash.
+  const soloSlash = t.match(/^(\d{1,2}[:.]\d{2})\s*\/\s*(\d{1,2}[:.]\d{2})$/);
+  const testo = soloSlash ? `${soloSlash[1]}-${soloSlash[2]}` : t;
+  // Split intervals by '/' (e.g. "08:00-12:00/15:00-19:00")
+  const parts = testo.split("/").map((p) => p.trim()).filter(Boolean);
   const intervals: { open: string; close: string }[] = [];
   for (const p of parts) {
     // Tolerate "07:30-12:15-14:30-19:00" by pairing all matched tokens.
@@ -62,6 +70,7 @@ function parseDayHours(raw: string | undefined | null): DayHours {
       intervals.push({ open: norm[i], close: norm[i + 1] });
     }
   }
+  // Testo senza orari riconoscibili ("Segue turni", "n.p.") = sconosciuto.
   return intervals.length ? intervals : null;
 }
 
@@ -116,6 +125,10 @@ function rowToStation(row: CsvRow, id: number): Station | null {
     always_open,
     self_service: (row.self || "").trim() === "1",
     phone: (row.telefono || "").trim() || null,
+    hours_source: (() => {
+      const f = (row.fonte_orari || "").trim();
+      return f === "osm" || f === "metanoauto" ? f : null;
+    })(),
     operator: null,
     payment_methods: [],
   };

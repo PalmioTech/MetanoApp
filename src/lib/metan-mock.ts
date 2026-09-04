@@ -2,6 +2,16 @@ import type { PlanRequest, PlanResult, Station, CandidateStation, StopAlternativ
 import { isStationOpenAt } from "./metan-types";
 import { loadStations, getCachedStations } from "./stations-loader";
 
+/**
+ * Stato apertura usato dal planner. Gli orari nel CSV sono quelli del
+ * presidio: un impianto self "chiuso" potrebbe erogare comunque, quindi per
+ * i self il "chiuso" diventa "sconosciuto" (null) invece di scartarlo.
+ */
+function openAtForPlanning(station: Station, at: Date): boolean | null {
+  const open = isStationOpenAt(station, at);
+  return open === false && station.self_service ? null : open;
+}
+
 // Title-case Italian city names like "REGGIO EMILIA" -> "Reggio Emilia"
 function titleCase(s: string): string {
   return s
@@ -298,7 +308,7 @@ function pickStops(
     for (let i = lastIdx + 1; i <= bestIdx; i++) {
       const c = candidates[i];
       if (c.cumKm < minCum) continue;
-      const open = isStationOpenAt(c.station, etaAt(c.cumKm));
+      const open = openAtForPlanning(c.station, etaAt(c.cumKm));
       const openRank = open === true ? 0 : open === null ? 1 : 2;
       const detour = c.detourKm;
       if (openRank < chosenScore[0] || (openRank === chosenScore[0] && detour < chosenScore[1])) {
@@ -550,7 +560,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
         station: cand.station,
         detour_km: cand.detourKm,
         extra_trip_km: Math.max(0, Math.round((2 * (cand.detourKm - baseDetour)) * 10) / 10),
-        is_open_at_eta: isStationOpenAt(cand.station, eta),
+        is_open_at_eta: openAtForPlanning(cand.station, eta),
       }));
 
     const alts: StopAlternative[] = pool;
@@ -558,7 +568,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     return {
       stop_number: i + 1,
       station: c.station,
-      is_open_at_eta: isStationOpenAt(c.station, eta),
+      is_open_at_eta: openAtForPlanning(c.station, eta),
       eta_label: `Arrivo stimato: ${etaStr}`,
       eta_iso: eta.toISOString(),
       detour_km: c.detourKm,

@@ -34,3 +34,10 @@ dist-ssr
 *.jks
 *.aab
 .vercel
+__pycache__/
+
+# cache risposta Overpass per confronta_orari_osm.py
+data/osm_cng.json
+
+# file consegnati da Claude (Cowork) nella cartella del progetto
+Claude outputs/

@@ -1,15 +1,11 @@
 import { useState } from "react";
-import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X, ExternalLink } from "lucide-react";
+import { Pencil, Navigation, Plus, MapPin, Clock, Fuel, AlertTriangle, Check, Repeat, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { CITIES } from "@/lib/metan-mock";
 import type { Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { Capacitor } from "@capacitor/core";
-
-// Su Android il pulsante "Apple Maps" non ha senso: l'app non esiste e il
-// link aprirebbe la versione web nel browser. Meglio solo Google Maps.
-const showAppleMaps = Capacitor.getPlatform() !== "android";
+import { NavAppButtons, type NavProvider } from "@/components/metan/NavAppButtons";
 
 const resultsCopy = {
   it: {
@@ -231,16 +227,11 @@ function StopCard({
           </div>
 
           <div className="flex gap-2 mt-3">
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${stop.station.lat},${stop.station.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <NavAppButtons
+              variant="compact"
+              point={{ lat: stop.station.lat, lng: stop.station.lng }}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-95 transition"
-            >
-              <Navigation className="h-3.5 w-3.5" />
-              {t.navigate}
-            </a>
+            />
             <button
               type="button"
               onClick={(e) => {
@@ -313,7 +304,7 @@ export function ResultsPanel({
   const canStart = remaining >= margin;
   const isNavigate = mode === "navigate";
 
-  const buildMapsUrl = (provider: "google" | "apple") => {
+  const buildMapsUrl = (provider: NavProvider) => {
     const poly = result.route.polyline;
     const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
     const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
@@ -324,6 +315,13 @@ export function ResultsPanel({
       ? destination
       : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
     const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
+    if (provider === "waze") {
+      // Waze non accetta tappe intermedie nel deep link: si punta alla prima
+      // sosta pianificata (o alla destinazione se il viaggio non ne ha).
+      const target = stops[0] ?? destParam;
+      const ll = /^-?[\d.]+,-?[\d.]+$/.test(target) ? `ll=${target}` : `q=${encodeURIComponent(target)}`;
+      return `https://waze.com/ul?${ll}&navigate=yes`;
+    }
     if (provider === "google") {
       const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
       return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
@@ -416,28 +414,7 @@ export function ResultsPanel({
           <div className="rounded-xl p-4 shadow-md text-primary-foreground bg-gradient-to-br from-primary to-primary-glow">
             <div className="text-xs opacity-90">{t.ready}</div>
             <div className="font-semibold text-base mt-0.5">{t.startNavigation}</div>
-            <div className="mt-3 flex gap-2">
-              <a
-                href={buildMapsUrl("google")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Google Maps
-              </a>
-              {showAppleMaps && (
-              <a
-                href={buildMapsUrl("apple")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Apple Maps
-              </a>
-              )}
-            </div>
+            <NavAppButtons getUrl={buildMapsUrl} tone="onGradient" className="mt-3" />
           </div>
         ) : (
           <div className={cn(
@@ -468,28 +445,7 @@ export function ResultsPanel({
             {canStart && (
               <div className="mt-3 space-y-2">
                 <div className="text-[11px] font-medium opacity-90">{t.launchWith}</div>
-                <div className="flex gap-2">
-                  <a
-                    href={buildMapsUrl("google")}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/95 text-foreground rounded-lg hover:bg-white transition"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Google Maps
-                  </a>
-                  {showAppleMaps && (
-                  <a
-                    href={buildMapsUrl("apple")}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-lg hover:bg-white/30 transition"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Apple Maps
-                  </a>
-                  )}
-                </div>
+                <NavAppButtons getUrl={buildMapsUrl} tone="onGradient" />
               </div>
             )}
           </div>

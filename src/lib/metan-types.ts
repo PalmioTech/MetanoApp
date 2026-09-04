@@ -1,7 +1,9 @@
 export type DayKey =
   | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 
-// One day can have multiple intervals (e.g. lunch break). null = closed all day.
+// One day can have multiple intervals (e.g. lunch break).
+// [] = chiuso tutto il giorno (dato certo); null = orario NON conosciuto.
+// La distinzione conta: un impianto senza dati non va mostrato come chiuso.
 export type DayHours = { open: string; close: string }[] | null;
 
 export type WeeklyHours = Record<DayKey, DayHours>;
@@ -22,6 +24,8 @@ export type Station = {
   self_service?: boolean;
   /** telefono dell'impianto (da OpenStreetMap), null se non disponibile */
   phone?: string | null;
+  /** da dove vengono gli orari: "osm" (OpenStreetMap) o "metanoauto" (storico) */
+  hours_source?: "osm" | "metanoauto" | null;
   payment_methods?: string[];
 };
 
@@ -101,9 +105,8 @@ export function isStationOpenAt(station: Station, date: Date): boolean | null {
   if (station.always_open) return true;
   const day = dayKeyFromDate(date);
   const intervals = station.opening_hours?.[day];
-  if (intervals === undefined) return null;
-  if (intervals === null) return false;
-  if (!intervals.length) return false;
+  if (intervals === undefined || intervals === null) return null; // orario sconosciuto
+  if (!intervals.length) return false; // chiuso tutto il giorno
   const mins = date.getHours() * 60 + date.getMinutes();
   for (const it of intervals) {
     const [oh, om] = it.open.split(":").map(Number);

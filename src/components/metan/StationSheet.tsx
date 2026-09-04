@@ -1,9 +1,12 @@
-import { X, MapPin, Clock, CreditCard, Building2, Plus, Navigation, Phone } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
+import { X, MapPin, Clock, CreditCard, Building2, Plus, Phone, Flag } from "lucide-react";
+import { NavAppButtons } from "@/components/metan/NavAppButtons";
 import type { Station, DayKey } from "@/lib/metan-types";
 import { DAY_ORDER, DAY_LABELS_IT, isStationOpenAt, dayKeyFromDate } from "@/lib/metan-types";
 import { Button } from "@/components/ui/button";
 import type { Language } from "@/lib/i18n";
+
+/** Indirizzo di supporto (lo stesso pubblicato sugli store). */
+const SUPPORT_EMAIL = "fede-palma@hotmail.it";
 
 const sheetCopy = {
   it: {
@@ -23,6 +26,13 @@ const sheetCopy = {
     selfService: "Self service",
     call: "Chiama",
     today: "Oggi",
+    hoursUnknown: "Orario non disponibile",
+    selfNotice: "Orari del presidio: con il self service l'erogazione potrebbe essere disponibile anche fuori orario. Verifica sul posto.",
+    hoursFromOsm: "Orari da OpenStreetMap",
+    hoursFromHistory: "Orari da segnalazioni storiche, potrebbero non essere aggiornati",
+    reportHours: "Orari sbagliati? Segnalalo",
+    reportSubject: "MetanApp - orario errato",
+    reportBody: "Impianto: {name} ({city}, {province})\nOrari mostrati dall'app:\n{hours}\n\nOrari corretti:\n",
     removeRoute: "Rimuovi dal percorso",
     addRoute: "Aggiungi al percorso",
     close: "Chiudi",
@@ -45,6 +55,13 @@ const sheetCopy = {
     selfService: "Self-service",
     call: "Call",
     today: "Today",
+    hoursUnknown: "Hours not available",
+    selfNotice: "Attended-service hours: with self-service, fuelling may be available outside these hours. Check on site.",
+    hoursFromOsm: "Hours from OpenStreetMap",
+    hoursFromHistory: "Hours from historical reports, may be outdated",
+    reportHours: "Wrong hours? Report it",
+    reportSubject: "MetanApp - wrong opening hours",
+    reportBody: "Station: {name} ({city}, {province})\nHours shown in the app:\n{hours}\n\nCorrect hours:\n",
     removeRoute: "Remove from route",
     addRoute: "Add to route",
     close: "Close",
@@ -72,7 +89,7 @@ interface StationSheetProps {
 
 function formatIntervals(intervals: { open: string; close: string }[] | null, language: Language): string {
   const t = sheetCopy[language];
-  if (intervals === null) return t.closed;
+  if (intervals === null) return t.hoursUnknown;
   if (!intervals.length) return t.closed;
   if (intervals.length === 1 && intervals[0].open === "00:00" && intervals[0].close === "23:59") return t.allDay;
   return intervals.map((i) => `${i.open}–${i.close}`).join(" / ");
@@ -93,6 +110,12 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
   const now = new Date();
   const todayKey: DayKey = dayKeyFromDate(now);
   const openNow = isStationOpenAt(station, now);
+  const hasAnyHours = station.always_open || DAY_ORDER.some((d) => station.opening_hours[d] !== null);
+  // Link "segnala orario errato": email con i dati dell'impianto gia' compilati
+  const hoursText = DAY_ORDER.map((d) => `${t.days[d]}: ${formatIntervals(
+    station.always_open ? [{ open: "00:00", close: "23:59" }] : station.opening_hours[d], language)}`).join("\n");
+  const reportHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`${t.reportSubject}: ${station.name}`)}&body=${encodeURIComponent(
+    t.reportBody.replace("{name}", station.name).replace("{city}", station.city).replace("{province}", station.province).replace("{hours}", hoursText))}`;
 
   return (
     <>
@@ -197,7 +220,8 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                   ? [{ open: "00:00", close: "23:59" }]
                   : station.opening_hours[d];
                 const isToday = d === todayKey;
-                const isClosed = intervals === null || (Array.isArray(intervals) && intervals.length === 0);
+                const isClosed = Array.isArray(intervals) && intervals.length === 0;
+                const isUnknown = intervals === null;
                 return (
                   <div
                     key={d}
@@ -209,7 +233,7 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
                       {t.days[d]}
                       {isToday && <span className="ml-1.5 text-[10px] uppercase text-primary">{t.today}</span>}
                     </span>
-                    <span className={isClosed ? "text-destructive" : "text-foreground"}>
+                    <span className={isClosed ? "text-destructive" : isUnknown ? "text-muted-foreground italic" : "text-foreground"}>
                       {formatIntervals(intervals, language)}
                     </span>
                   </div>
@@ -218,29 +242,31 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
             </div>
           </div>
 
-          {/* Naviga fino a questo distributore */}
-          <div className="mt-5 flex gap-2">
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-glow text-primary-foreground text-sm font-semibold active:scale-[0.98] transition"
-            >
-              <Navigation className="h-4 w-4" />
-              Google Maps
-            </a>
-            {Capacitor.getPlatform() !== "android" && (
-              <a
-                href={`https://maps.apple.com/?daddr=${station.lat},${station.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-foreground text-sm font-semibold active:scale-[0.98] transition"
-              >
-                <Navigation className="h-4 w-4" />
-                Apple Maps
-              </a>
+          {/* Affidabilita' degli orari: avviso self, fonte e segnalazione errori */}
+          <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+            {station.self_service && !station.always_open && (
+              <p className="rounded-md bg-sky-50 text-sky-800 px-3 py-2">{t.selfNotice}</p>
             )}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <span>
+                {station.hours_source === "osm"
+                  ? t.hoursFromOsm
+                  : hasAnyHours
+                    ? t.hoursFromHistory
+                    : ""}
+              </span>
+              <a
+                href={reportHref}
+                className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-2 hover:underline whitespace-nowrap"
+              >
+                <Flag className="h-3 w-3" />
+                {t.reportHours}
+              </a>
+            </div>
           </div>
+
+          {/* Naviga fino a questo distributore: Google Maps, Apple Maps, Waze */}
+          <NavAppButtons point={{ lat: station.lat, lng: station.lng }} className="mt-5" />
 
           {/* Chiama l'impianto (numero da OpenStreetMap, quando disponibile) */}
           {station.phone && (

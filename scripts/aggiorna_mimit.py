@@ -51,6 +51,7 @@ RAGGIO_ABBINAMENTO_METRI = 250.0
 OUTPUT_HEADER = [
     "lat", "Long", "Via estesa", "provincia", "citta", "via",
     "prezzo", "feriali", "festivi", "prefestivi", "self", "telefono",
+    "fonte_orari",  # "osm" | "metanoauto" | "" (vedi applica_orari_osm.py)
 ]
 
 
@@ -189,6 +190,7 @@ def carica_orari_precedenti(percorso: str) -> list[dict]:
                     "feriali": (r.get("feriali") or "").strip(),
                     "festivi": (r.get("festivi") or "").strip(),
                     "prefestivi": (r.get("prefestivi") or "").strip(),
+                    "fonte": (r.get("fonte_orari") or "").strip(),
                 })
     except FileNotFoundError:
         print("[info] nessun CSV precedente: gli orari partiranno vuoti", file=sys.stderr)
@@ -196,8 +198,8 @@ def carica_orari_precedenti(percorso: str) -> list[dict]:
 
 
 def orari_per(lat: float, lng: float, precedenti: list[dict],
-              griglia: dict[tuple[int, int], list[dict]]) -> tuple[str, str, str]:
-    """Orari della voce precedente piu' vicina entro il raggio, o vuoti."""
+              griglia: dict[tuple[int, int], list[dict]]) -> tuple[str, str, str, str]:
+    """Orari (e loro fonte) della voce precedente piu' vicina entro il raggio, o vuoti."""
     # griglia ~0.01 grado (~1 km) per non fare N*M confronti su tutta Italia
     cx, cy = int(lat * 100), int(lng * 100)
     migliore, dist_migliore = None, RAGGIO_ABBINAMENTO_METRI + 1
@@ -208,8 +210,10 @@ def orari_per(lat: float, lng: float, precedenti: list[dict],
                 if d < dist_migliore:
                     migliore, dist_migliore = voce, d
     if migliore and dist_migliore <= RAGGIO_ABBINAMENTO_METRI:
-        return migliore["feriali"], migliore["festivi"], migliore["prefestivi"]
-    return "", "", ""
+        ha_orari = migliore["feriali"] or migliore["festivi"] or migliore["prefestivi"]
+        fonte = migliore["fonte"] or ("metanoauto" if ha_orari else "")
+        return migliore["feriali"], migliore["festivi"], migliore["prefestivi"], fonte
+    return "", "", "", ""
 
 
 def main() -> int:
@@ -249,7 +253,7 @@ def main() -> int:
         imp = impianti.get(id_imp)
         if imp is None:
             continue  # prezzo senza anagrafica: non georeferenziabile
-        feriali, festivi, prefestivi = orari_per(imp["lat"], imp["lng"], precedenti, griglia)
+        feriali, festivi, prefestivi, fonte = orari_per(imp["lat"], imp["lng"], precedenti, griglia)
         if feriali or festivi or prefestivi:
             con_orari += 1
         righe.append([
@@ -263,6 +267,7 @@ def main() -> int:
             feriali, festivi, prefestivi,
             "1" if id_imp in self_ids else "",
             telefoni.get(id_imp, ""),
+            fonte,
         ])
 
     print(f"      stazioni metano georeferenziate: {len(righe)} "
