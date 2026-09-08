@@ -23,9 +23,16 @@ type NavApp = {
   accent: string;
   /** l'app ha senso su questa piattaforma? */
   available: () => boolean;
+  /** se true, quando ci sono 3+ app il pulsante mostra solo l'icona */
+  iconOnlyWhenCrowded?: boolean;
   /** navigazione semplice verso un punto */
   toPoint: (p: LatLng) => string;
 };
+
+function isAndroid(): boolean {
+  if (Capacitor.getPlatform() === "android") return true;
+  return typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+}
 
 export const NAV_APPS: NavApp[] = [
   {
@@ -43,7 +50,8 @@ export const NAV_APPS: NavApp[] = [
     icon: Map,
     accent: "#3B82F6",
     // Su Android Apple Maps non esiste: il link aprirebbe solo la versione web.
-    available: () => Capacitor.getPlatform() !== "android",
+    // Vale anche per il sito aperto dal browser di un telefono Android.
+    available: () => !isAndroid(),
     toPoint: ({ lat, lng }) => `https://maps.apple.com/?dirflg=d&daddr=${lat},${lng}`,
   },
   {
@@ -52,6 +60,7 @@ export const NAV_APPS: NavApp[] = [
     icon: Car,
     accent: "#05C8F7",
     available: () => true,
+    iconOnlyWhenCrowded: true, // su iOS, accanto a Google e Apple, resta solo l'icona
     // Deep link ufficiale Waze: ll = lat,lon ; navigate=yes avvia subito la guida.
     toPoint: ({ lat, lng }) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
   },
@@ -72,12 +81,14 @@ type Props = {
 export function NavAppButtons({ getUrl, point, variant = "full", tone = "default", className, onClick }: Props) {
   const apps = NAV_APPS.filter((a) => a.available());
   const urlFor = (app: NavApp) => (getUrl ? getUrl(app.id) : point ? app.toPoint(point) : "#");
-  const compact = variant === "compact";
+  const crowded = apps.length >= 3;
 
   return (
     <div className={cn("flex gap-2", className)}>
       {apps.map((app) => {
         const Icon = app.icon;
+        // Solo icona: variante compatta, oppure app marcata iconOnlyWhenCrowded con 3+ pulsanti
+        const compact = variant === "compact" || (crowded && !!app.iconOnlyWhenCrowded);
         return (
           <a
             key={app.id}
@@ -89,7 +100,9 @@ export function NavAppButtons({ getUrl, point, variant = "full", tone = "default
             title={app.label}
             className={cn(
               "inline-flex items-center justify-center gap-2 rounded-lg font-semibold active:scale-[0.98] transition",
-              compact ? "h-9 w-9 shrink-0" : "flex-1 h-11 text-sm",
+              compact
+                ? variant === "compact" ? "h-9 w-9 shrink-0" : "h-11 w-11 shrink-0"
+                : "flex-1 h-11 text-sm",
               tone === "onGradient"
                 ? "bg-white/95 text-foreground hover:bg-white"
                 : "border border-border bg-secondary text-foreground",

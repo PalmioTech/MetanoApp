@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CITIES } from "@/lib/metan-mock";
 import { getCurrentPosition } from "@/lib/geolocation";
-import type { PlanRequest } from "@/lib/metan-types";
+import type { PlanRequest, StationFilter } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
 import { languageNames } from "@/lib/i18n";
 import { FlagIcon } from "@/components/metan/FlagIcon";
@@ -36,6 +36,10 @@ const formCopy = {
     calculateRoute: "Calcola percorso",
     findStops: "Trova le soste migliori",
     language: "Lingua",
+    stations: "Distributori",
+    filterAll: "Tutti",
+    filterHighway: "Solo autostrada",
+    filterNoHighway: "Fuori autostrada",
   },
   en: {
     subtitle: "CNG Trip Planner",
@@ -60,6 +64,10 @@ const formCopy = {
     calculateRoute: "Calculate route",
     findStops: "Find best stops",
     language: "Language",
+    stations: "Stations",
+    filterAll: "All",
+    filterHighway: "Motorway only",
+    filterNoHighway: "Off motorway",
   },
 } as const;
 
@@ -226,6 +234,7 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
   const [safety, setSafety] = useState("20");
   const [departMode, setDepartMode] = useState<"now" | "schedule">("now");
   const [departAt, setDepartAt] = useState("");
+  const [stationFilter, setStationFilter] = useState<StationFilter>("all");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,6 +250,7 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
       max_range_km: isOrganize ? Number(maxRange) || 0 : 999999,
       safety_margin_km: isOrganize ? Number(safety) || 0 : 0,
       depart_at: departMode === "schedule" ? departAt : null,
+      station_filter: stationFilter,
       origin_coords: originCoords ?? undefined,
       destination_coords: destCoords ?? undefined,
     } as any);
@@ -306,6 +316,32 @@ export function TripForm({ onPlan, loading, language, onLanguageChange }: TripFo
           <Plus className="h-3.5 w-3.5" />
           {t.addWaypoint}
         </button>
+
+        {/* Filtro distributori: tutti / solo autostrada / fuori autostrada */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">{t.stations}</Label>
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-secondary/50 border border-secondary p-1">
+            {([
+              ["all", t.filterAll],
+              ["highway", t.filterHighway],
+              ["no_highway", t.filterNoHighway],
+            ] as [StationFilter, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setStationFilter(value)}
+                className={cn(
+                  "h-9 rounded-md text-xs font-medium transition whitespace-nowrap",
+                  stationFilter === value
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );

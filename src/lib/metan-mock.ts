@@ -1,5 +1,5 @@
 import type { PlanRequest, PlanResult, Station, CandidateStation, StopAlternative, Waypoint } from "./metan-types";
-import { isStationOpenAt } from "./metan-types";
+import { isStationOpenAt, isHighwayStation } from "./metan-types";
 import { loadStations, getCachedStations } from "./stations-loader";
 
 /**
@@ -196,13 +196,8 @@ const MAX_DETOUR_KM = 8;
 //   - the WEST carriageway ("Ovest") serves SOUTHBOUND traffic
 //   - the EAST carriageway ("Est")  serves NORTHBOUND traffic
 // "Nord" / "Sud" naming usually refers to the direction the carriageway heads.
-function isHighwayStationName(name: string): boolean {
-  const n = name.toLowerCase();
-  return /\b(a\d+|autostrad|ads)\b/.test(n);
-}
-
 function highwayServesDirection(s: Station): "north" | "south" | null {
-  if (!isHighwayStationName(s.name)) return null;
+  if (!isHighwayStation(s)) return null;
   const n = s.name.toLowerCase();
   if (/\bnord\b/.test(n)) return "north";
   if (/\bsud\b/.test(n)) return "south";
@@ -509,10 +504,14 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   }
 
   const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
+  const stationFilter = req.station_filter ?? "all";
   const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter((c) => {
     if (excludedSet.has(c.station.id)) return false;
-    // Always allow forced stations regardless of direction
+    // Always allow forced stations regardless of direction or filter
     if ((req.forced_station_ids ?? []).includes(c.station.id)) return true;
+    // Filtro autostrada scelto dall'utente nel form
+    if (stationFilter === "highway" && !isHighwayStation(c.station)) return false;
+    if (stationFilter === "no_highway" && isHighwayStation(c.station)) return false;
     const sd = highwayServesDirection(c.station);
     // If station's carriageway has a direction and the route is locally N/S,
     // exclude when the carriageway serves the opposite direction.

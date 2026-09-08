@@ -69,6 +69,17 @@ export type Waypoint = {
   forced_station_id?: number;
 };
 
+/** Quali distributori considerare nella pianificazione. */
+export type StationFilter = "all" | "highway" | "no_highway";
+
+/**
+ * Impianto in autostrada: riconosciuto dal nome (A1, A14, "autostrada", "ADS"
+ * = area di servizio). Usato da mappa e planner.
+ */
+export function isHighwayStation(s: Station): boolean {
+  return /\b(a\d+|autostrad|ads)\b/.test(s.name.toLowerCase());
+}
+
 export type PlanRequest = {
   origin: string;
   destination: string;
@@ -80,6 +91,7 @@ export type PlanRequest = {
   forced_station_ids?: number[]; // stations that MUST be in the stop list
   excluded_station_ids?: number[]; // stations to exclude from picks
   mode?: "navigate" | "organize";
+  station_filter?: StationFilter; // default "all"
 };
 
 export const DAY_ORDER: DayKey[] = [

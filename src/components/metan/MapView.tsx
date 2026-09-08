@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, useMap, useMap
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PlanResult, Station } from "@/lib/metan-types";
-import { isStationOpenAt } from "@/lib/metan-types";
+import { isStationOpenAt, isHighwayStation } from "@/lib/metan-types";
 import { ALL_STATIONS } from "@/lib/metan-mock";
 
 /**
@@ -31,11 +31,6 @@ function FlyToUser() {
       pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#2563eb", fillOpacity: 1 }}
     />
   );
-}
-
-function isHighwayStation(s: Station): boolean {
-  const n = s.name.toLowerCase();
-  return /\b(a\d+|autostrad|ads)\b/.test(n);
 }
 
 function isH24Station(s: Station): boolean {
