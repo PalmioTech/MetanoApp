@@ -62,59 +62,22 @@ const stopIcon = (number: number, highlighted = false) => {
   });
 };
 
-const grayIcon = (station: Station, hover = false, openNow = false) => {
-  const highway = isHighwayStation(station);
-  const h24 = isH24Station(station);
-  const size = hover ? 28 : 20;
-  const inner = hover ? 10 : 7;
+/**
+ * Colore del pallino per i distributori "candidati" (tutti quelli sulla mappa
+ * che non sono soste). Stessa semantica di grayIcon: verde = aperto adesso,
+ * blu = autostrada, ambra = H24, grigio = altro.
+ */
+function candidateColor(station: Station, openNow: boolean): string {
+  if (openNow) return "oklch(0.62 0.19 150)";
+  if (isHighwayStation(station)) return "oklch(0.50 0.18 250)";
+  if (isH24Station(station)) return "oklch(0.65 0.16 85)";
+  return "oklch(0.60 0.02 250)";
+}
 
-  let bg: string;
-  let shadow: string;
-  if (openNow) {
-    // Bright green for stations open right now
-    bg = hover
-      ? "linear-gradient(135deg, oklch(0.68 0.20 150), oklch(0.76 0.20 155))"
-      : "linear-gradient(135deg, oklch(0.62 0.19 150), oklch(0.70 0.18 155))";
-    shadow = hover
-      ? "0 6px 16px rgba(22,163,74,.55)"
-      : "0 2px 6px rgba(22,163,74,.4)";
-  } else if (highway) {
-    bg = hover
-      ? "linear-gradient(135deg, oklch(0.55 0.22 250), oklch(0.65 0.20 260))"
-      : "linear-gradient(135deg, oklch(0.50 0.18 250), oklch(0.58 0.16 255))";
-    shadow = hover
-      ? "0 6px 16px rgba(37,99,235,.5)"
-      : "0 2px 6px rgba(37,99,235,.3)";
-  } else if (h24) {
-    bg = hover
-      ? "linear-gradient(135deg, oklch(0.72 0.19 85), oklch(0.78 0.17 75))"
-      : "linear-gradient(135deg, oklch(0.65 0.16 85), oklch(0.72 0.14 80))";
-    shadow = hover
-      ? "0 6px 16px rgba(217,119,6,.5)"
-      : "0 2px 6px rgba(217,119,6,.3)";
-  } else {
-    bg = hover
-      ? "linear-gradient(135deg, oklch(0.62 0.17 150), oklch(0.72 0.18 155))"
-      : "linear-gradient(135deg, oklch(0.55 0.02 250), oklch(0.65 0.02 250))";
-    shadow = hover
-      ? "0 6px 16px rgba(22,163,74,.5)"
-      : "0 2px 6px rgba(15,23,42,.25)";
-  }
-
-  return L.divIcon({
-    className: "metan-marker metan-marker-candidate",
-    html: `<div style="
-      width:${size}px;height:${size}px;border-radius:50%;
-      background:${bg};
-      border:2px solid white;
-      box-shadow:${shadow};
-      display:flex;align-items:center;justify-content:center;
-      transform:translate(-50%,-50%);
-      transition:all .15s ease;cursor:pointer;
-    "><div style="width:${inner}px;height:${inner}px;border-radius:50%;background:white;opacity:.9;"></div></div>`,
-    iconSize: [0, 0],
-  });
-};
+// Renderer canvas condiviso: 1500 pallini diventano UN solo layer disegnato,
+// invece di 1500 <div> con gradienti e ombre da comporre sulla GPU a ogni pan.
+// Riduce il carico del compositor (vedi crash VK_ERROR_DEVICE_LOST su Pixel).
+const canvasRenderer = typeof window !== "undefined" ? L.canvas({ padding: 0.5 }) : undefined;
 
 const altIcon = (hover = false) => {
   const size = hover ? 32 : 26;
@@ -289,11 +252,19 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
 
       {visibleStations.map((s) => {
         const openNow = isStationOpenAt(s, new Date()) === true;
+        const hover = hoveredStationId === s.id;
         return (
-          <Marker
+          <CircleMarker
             key={s.id}
-            position={[s.lat, s.lng]}
-            icon={grayIcon(s, hoveredStationId === s.id, openNow)}
+            center={[s.lat, s.lng]}
+            radius={hover ? 13 : 9}
+            renderer={canvasRenderer}
+            pathOptions={{
+              color: "#ffffff",
+              weight: 2,
+              fillColor: candidateColor(s, openNow),
+              fillOpacity: 1,
+            }}
             eventHandlers={{
               click: () => onStationClick(s),
               mouseover: () => setHoveredStationId(s.id),

@@ -62,9 +62,39 @@ export const NAV_APPS: NavApp[] = [
     available: () => true,
     iconOnlyWhenCrowded: true, // su iOS, accanto a Google e Apple, resta solo l'icona
     // Deep link ufficiale Waze: ll = lat,lon ; navigate=yes avvia subito la guida.
-    toPoint: ({ lat, lng }) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
+    toPoint: ({ lat, lng }) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes&utm_source=metanapp`,
   },
 ];
+
+export type RouteParams = {
+  /** citta' o "lat,lng" */
+  origin: string;
+  destination: string;
+  /** soste intermedie come "lat,lng" */
+  stops: string[];
+};
+
+/**
+ * URL per l'intero itinerario (partenza, soste, destinazione) nell'app scelta.
+ * Waze non accetta tappe intermedie: punta alla prima sosta, o alla
+ * destinazione se il viaggio non ne ha.
+ */
+export function buildRouteUrl(provider: NavProvider, r: RouteParams): string {
+  const enc = encodeURIComponent;
+  if (provider === "google") {
+    const waypoints = r.stops.length ? `&waypoints=${r.stops.join("|")}` : "";
+    return `https://www.google.com/maps/dir/?api=1&origin=${enc(r.origin)}&destination=${enc(r.destination)}${waypoints}&travelmode=driving`;
+  }
+  if (provider === "apple") {
+    const daddr = r.stops.length
+      ? `${r.stops.map(enc).join("+to:")}+to:${enc(r.destination)}`
+      : enc(r.destination);
+    return `https://maps.apple.com/?dirflg=d&saddr=${enc(r.origin)}&daddr=${daddr}`;
+  }
+  const target = r.stops[0] ?? r.destination;
+  const ll = /^-?[\d.]+,-?[\d.]+$/.test(target) ? `ll=${target}` : `q=${enc(target)}`;
+  return `https://waze.com/ul?${ll}&navigate=yes&utm_source=metanapp`;
+}
 
 type Props = {
   /** URL da aprire per ciascun provider. Default: navigazione verso `point`. */
@@ -74,11 +104,14 @@ type Props = {
   variant?: "full" | "compact";
   /** "onGradient" per i pulsanti bianchi sopra la card colorata dei risultati */
   tone?: "default" | "onGradient";
+  /** "full" = pillole arrotondate (barra flottante sulla mappa) */
+  rounded?: "lg" | "full";
   className?: string;
+  linkClassName?: string;
   onClick?: (e: React.MouseEvent) => void;
 };
 
-export function NavAppButtons({ getUrl, point, variant = "full", tone = "default", className, onClick }: Props) {
+export function NavAppButtons({ getUrl, point, variant = "full", tone = "default", rounded = "lg", className, linkClassName, onClick }: Props) {
   const apps = NAV_APPS.filter((a) => a.available());
   const urlFor = (app: NavApp) => (getUrl ? getUrl(app.id) : point ? app.toPoint(point) : "#");
   const crowded = apps.length >= 3;
@@ -99,7 +132,9 @@ export function NavAppButtons({ getUrl, point, variant = "full", tone = "default
             aria-label={app.label}
             title={app.label}
             className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-lg font-semibold active:scale-[0.98] transition",
+              "inline-flex items-center justify-center gap-2 font-semibold active:scale-[0.98] transition",
+              rounded === "full" ? "rounded-full" : "rounded-lg",
+              linkClassName,
               compact
                 ? variant === "compact" ? "h-9 w-9 shrink-0" : "h-11 w-11 shrink-0"
                 : "flex-1 h-11 text-sm",

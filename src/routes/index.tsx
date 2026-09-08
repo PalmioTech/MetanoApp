@@ -5,11 +5,12 @@ import { TripForm } from "@/components/metan/TripForm";
 import { ResultsPanel } from "@/components/metan/ResultsPanel";
 import { StationSheet } from "@/components/metan/StationSheet";
 import { mockPlan, ALL_STATIONS, CITIES } from "@/lib/metan-mock";
-import { Navigation, ExternalLink } from "lucide-react";
+import { Navigation } from "lucide-react";
 import { useStations } from "@/hooks/use-stations";
 import type { PlanRequest, PlanResult, Station } from "@/lib/metan-types";
 import type { Language } from "@/lib/i18n";
 import { LANGUAGE_STORAGE_KEY, copy, languageNames } from "@/lib/i18n";
+import { NavAppButtons, buildRouteUrl, type RouteParams } from "@/components/metan/NavAppButtons";
 import { Capacitor } from "@capacitor/core";
 import { FlagIcon } from "@/components/metan/FlagIcon";
 import { Onboarding, isTutorialDone } from "@/components/metan/Onboarding";
@@ -55,6 +56,12 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  // Su Android il backdrop-filter e' tra le operazioni piu' pesanti per il
+  // compositor (Vulkan) della WebView: lo spegniamo via CSS (vedi styles.css)
+  // marcando <html> con la piattaforma. Sul web e su iOS resta com'e'.
+  useEffect(() => {
+    document.documentElement.classList.add(`platform-${Capacitor.getPlatform()}`);
+  }, []);
   const [language, setLanguageState] = useState<Language | null>(null);
   const { ready: stationsReady, error: stationsError, updatedAt: stationsUpdatedAt } = useStations();
   const [result, setResult] = useState<PlanResult | null>(null);
@@ -209,40 +216,20 @@ function HomePage() {
     await runPlan({ ...lastReq, forced_station_ids: nextForced, excluded_station_ids: nextExcluded });
   };
 
-  // Build a Google Maps directions URL for the full planned route.
-  const buildGoogleMapsUrl = (): string | null => {
+  // Parametri dell'itinerario completo per le app di navigazione (mobile, drawer chiuso).
+  const routeParams = (): RouteParams | null => {
     if (!result || !lastReq) return null;
     const poly = result.route.polyline;
     const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
     const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
-    const originParam = isCity(lastReq.origin) || !poly.length
+    const origin = isCity(lastReq.origin) || !poly.length
       ? lastReq.origin
       : `${poly[0][0]},${poly[0][1]}`;
-    const destParam = isCity(lastReq.destination) || !poly.length
+    const destination = isCity(lastReq.destination) || !poly.length
       ? lastReq.destination
       : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
     const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
-    const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
-  };
-
-  // Build an Apple Maps directions URL for the full planned route.
-  const buildAppleMapsUrl = (): string | null => {
-    if (!result || !lastReq) return null;
-    const poly = result.route.polyline;
-    const cityNames = new Set(CITIES.map((c) => c.toLowerCase().trim()));
-    const isCity = (s: string) => cityNames.has(s.toLowerCase().trim());
-    const originParam = isCity(lastReq.origin) || !poly.length
-      ? lastReq.origin
-      : `${poly[0][0]},${poly[0][1]}`;
-    const destParam = isCity(lastReq.destination) || !poly.length
-      ? lastReq.destination
-      : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
-    const stops = result.stops.map((s) => encodeURIComponent(`${s.station.lat},${s.station.lng}`));
-    if (stops.length > 0) {
-      return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${stops.join("+to:")}+to:${encodeURIComponent(destParam)}`;
-    }
-    return `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${encodeURIComponent(destParam)}`;
+    return { origin, destination, stops };
   };
 
   return (
@@ -481,31 +468,13 @@ function HomePage() {
       )}
 
       {/* Mobile: floating buttons when drawer collapsed — quick Naviga */}
-      {result && !drawerOpen && (
-        <div className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] flex gap-2 pointer-events-none">
-          {buildGoogleMapsUrl() && (
-            <a
-              href={buildGoogleMapsUrl()!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-white text-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition border border-border"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Google Maps
-            </a>
-          )}
-          {buildAppleMapsUrl() && Capacitor.getPlatform() !== "android" && (
-            <a
-              href={buildAppleMapsUrl()!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pointer-events-auto flex-1 h-12 inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground rounded-full shadow-[var(--shadow-panel)] active:scale-[0.98] transition"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Apple Maps
-            </a>
-          )}
-        </div>
+      {result && !drawerOpen && routeParams() && (
+        <NavAppButtons
+          getUrl={(p) => buildRouteUrl(p, routeParams()!)}
+          rounded="full"
+          className="md:hidden absolute left-3 right-3 bottom-[76px] z-[1100] pointer-events-none"
+          linkClassName="pointer-events-auto h-12 bg-white shadow-[var(--shadow-panel)] border-border"
+        />
       )}
 
       {/* Mobile: when drawer is open, show a quick "Mostra mappa" button at the top */}

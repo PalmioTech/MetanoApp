@@ -5,7 +5,7 @@ import type { PlanResult, Stop, StopAlternative } from "@/lib/metan-types";
 import { CITIES } from "@/lib/metan-mock";
 import type { Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { NavAppButtons, type NavProvider } from "@/components/metan/NavAppButtons";
+import { NavAppButtons, buildRouteUrl, type NavProvider } from "@/components/metan/NavAppButtons";
 
 const resultsCopy = {
   it: {
@@ -315,22 +315,7 @@ export function ResultsPanel({
       ? destination
       : `${poly[poly.length - 1][0]},${poly[poly.length - 1][1]}`;
     const stops = result.stops.map((s) => `${s.station.lat},${s.station.lng}`);
-    if (provider === "waze") {
-      // Waze non accetta tappe intermedie nel deep link: si punta alla prima
-      // sosta pianificata (o alla destinazione se il viaggio non ne ha).
-      const target = stops[0] ?? destParam;
-      const ll = /^-?[\d.]+,-?[\d.]+$/.test(target) ? `ll=${target}` : `q=${encodeURIComponent(target)}`;
-      return `https://waze.com/ul?${ll}&navigate=yes`;
-    }
-    if (provider === "google") {
-      const waypoints = stops.length > 0 ? `&waypoints=${stops.join("|")}` : "";
-      return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}${waypoints}&travelmode=driving`;
-    }
-    const appleStops = stops.map((s) => encodeURIComponent(s)).join("+to:");
-    const appleRoute = appleStops
-      ? `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${appleStops}+to:${encodeURIComponent(destParam)}`
-      : `https://maps.apple.com/?dirflg=d&saddr=${encodeURIComponent(originParam)}&daddr=${encodeURIComponent(destParam)}`;
-    return appleRoute;
+    return buildRouteUrl(provider, { origin: originParam, destination: destParam, stops });
   };
 
   return (
