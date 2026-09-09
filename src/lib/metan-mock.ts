@@ -290,9 +290,14 @@ function pickStops(
       if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
     }
 
-    if (bestIdx === -1 && !nextForced) break;
     if (bestIdx === -1) {
-      warnings.push("Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso.");
+      // Nessun candidato raggiungibile: senza questo avviso il pannello
+      // mostrerebbe "Nessuna sosta necessaria", che e' l'opposto della verita'.
+      warnings.push(
+        nextForced
+          ? "Autonomia insufficiente per raggiungere la prossima tappa lungo il percorso."
+          : `Nessun distributore raggiungibile entro l'autonomia (${Math.round(usable(range))} km utili da ${Math.round(pos)} km): con i filtri attuali non e' possibile completare il viaggio.`,
+      );
       break;
     }
 
@@ -523,6 +528,14 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
+  if (stationFilter !== "all" && candidatesAll.length === 0) {
+    warnings.push(
+      stationFilter === "highway"
+        ? "Nessun distributore in autostrada lungo questo percorso: prova con «Tutti»."
+        : "Nessun distributore fuori autostrada lungo questo percorso: prova con «Tutti».",
+    );
+  }
+
   const { picked, warnings: pickWarnings } = pickStops(
     candidatesAll,
     totalKm,
@@ -584,6 +597,10 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const remaining = Math.max(0, Math.round(startingRange - kmAfterLast));
 
   if (missing.length) warnings.unshift(`Città non riconosciuta: ${missing.join(", ")}.`);
+  if (stationFilter !== "all" && candidatesAll.length > 0
+      && warnings.some((w) => w.startsWith("Nessun distributore raggiungibile"))) {
+    warnings.push(`Filtro attivo: ${candidatesAll.length} distributori considerati. Con «Tutti» le opzioni aumentano.`);
+  }
 
   const candidates: CandidateStation[] = candidatesAll
     .filter((c) => !pickedIds.has(c.station.id))

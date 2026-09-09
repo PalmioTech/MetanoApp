@@ -22,10 +22,12 @@ export type Station = {
   always_open: boolean;
   /** true se il MIMIT registra un prezzo self-service per l'impianto */
   self_service?: boolean;
+  /** true se l'erogazione self e' attiva anche fuori dall'orario del presidio (segnalazioni) */
+  self_h24?: boolean;
   /** telefono dell'impianto (da OpenStreetMap), null se non disponibile */
   phone?: string | null;
   /** da dove vengono gli orari: "osm" (OpenStreetMap) o "metanoauto" (storico) */
-  hours_source?: "osm" | "metanoauto" | null;
+  hours_source?: "osm" | "metanoauto" | "segnalazione" | null;
   payment_methods?: string[];
 };
 
@@ -77,7 +79,15 @@ export type StationFilter = "all" | "highway" | "no_highway";
  * = area di servizio). Usato da mappa e planner.
  */
 export function isHighwayStation(s: Station): boolean {
-  return /\b(a\d+|autostrad|ads)\b/.test(s.name.toLowerCase());
+  // Nel MIMIT il nome e' spesso solo "ESINO EST" o "ARDA OVEST": l'autostrada
+  // sta nell'indirizzo ("Autostrada A14 BOLOGNA-BARI-TARANTO, Km. ..."). Con il
+  // solo nome si riconoscevano 7 impianti su ~1500; con l'indirizzo circa 90.
+  const name = s.name.toLowerCase();
+  const addr = (s.address ?? "").toLowerCase();
+  return (
+    /\b(a\d+|autostrad|ads)\b/.test(name) ||
+    /\bautostrad|\braccordo autostradale|\btangenziale\b|\ba\d{1,2}\b/.test(addr)
+  );
 }
 
 export type PlanRequest = {
@@ -114,7 +124,8 @@ export function dayKeyFromDate(d: Date): DayKey {
 }
 
 export function isStationOpenAt(station: Station, date: Date): boolean | null {
-  if (station.always_open) return true;
+  // H24 dichiarato, oppure self che eroga anche fuori orario (segnalato).
+  if (station.always_open || station.self_h24) return true;
   const day = dayKeyFromDate(date);
   const intervals = station.opening_hours?.[day];
   if (intervals === undefined || intervals === null) return null; // orario sconosciuto

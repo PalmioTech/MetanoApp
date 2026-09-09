@@ -51,7 +51,8 @@ RAGGIO_ABBINAMENTO_METRI = 250.0
 OUTPUT_HEADER = [
     "lat", "Long", "Via estesa", "provincia", "citta", "via",
     "prezzo", "feriali", "festivi", "prefestivi", "self", "telefono",
-    "fonte_orari",  # "osm" | "metanoauto" | "" (vedi applica_orari_osm.py)
+    "fonte_orari",  # "osm" | "metanoauto" | "segnalazione" | "" (vedi applica_orari_osm.py)
+    "self_h24",     # "1" = erogazione self anche fuori orario (da data/orari_manuali.csv)
 ]
 
 
@@ -273,6 +274,7 @@ def main() -> int:
             "1" if id_imp in self_ids else "",
             telefoni.get(id_imp, ""),
             fonte,
+            "",  # self_h24: lo compilano le correzioni manuali qui sotto
         ])
 
     print(f"      stazioni metano georeferenziate: {len(righe)} "
@@ -284,6 +286,13 @@ def main() -> int:
         return 1
 
     righe.sort(key=lambda r: (r[3], r[4], r[2]))  # provincia, citta, nome
+
+    # Correzioni manuali (segnalazioni degli utenti): sovrascrivono orari/self.
+    from orari_manuali import applica as applica_manuali
+    dict_righe = [dict(zip(OUTPUT_HEADER, r)) for r in righe]
+    n_man = applica_manuali(dict_righe)
+    righe = [[d[c] for c in OUTPUT_HEADER] for d in dict_righe]
+    print(f"      correzioni manuali applicate: {n_man}", file=sys.stderr)
 
     print(f"[4/4] scrivo {args.output}", file=sys.stderr)
     with open(args.output, "w", newline="", encoding="utf-8") as f:

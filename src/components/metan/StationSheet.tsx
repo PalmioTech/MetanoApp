@@ -28,6 +28,8 @@ const sheetCopy = {
     today: "Oggi",
     hoursUnknown: "Orario non disponibile",
     selfNotice: "Orari del presidio: con il self service l'erogazione potrebbe essere disponibile anche fuori orario. Verifica sul posto.",
+    selfH24Notice: "Self service attivo anche fuori dall'orario del presidio (segnalato da un utente).",
+    hoursFromReport: "Orari corretti grazie alle segnalazioni degli utenti",
     hoursFromOsm: "Orari da OpenStreetMap",
     hoursFromHistory: "Orari da segnalazioni storiche, potrebbero non essere aggiornati",
     reportHours: "Orari sbagliati? Segnalalo",
@@ -57,6 +59,8 @@ const sheetCopy = {
     today: "Today",
     hoursUnknown: "Hours not available",
     selfNotice: "Attended-service hours: with self-service, fuelling may be available outside these hours. Check on site.",
+    selfH24Notice: "Self-service available outside attended hours (reported by a user).",
+    hoursFromReport: "Hours corrected thanks to user reports",
     hoursFromOsm: "Hours from OpenStreetMap",
     hoursFromHistory: "Hours from historical reports, may be outdated",
     reportHours: "Wrong hours? Report it",
@@ -244,12 +248,16 @@ export function StationSheet({ station, onClose, onAddStation, onRemoveStation, 
 
           {/* Affidabilita' degli orari: avviso self, fonte e segnalazione errori */}
           <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-            {station.self_service && !station.always_open && (
+            {station.self_h24 && !station.always_open ? (
+              <p className="rounded-md bg-emerald-50 text-emerald-800 px-3 py-2">{t.selfH24Notice}</p>
+            ) : station.self_service && !station.always_open ? (
               <p className="rounded-md bg-sky-50 text-sky-800 px-3 py-2">{t.selfNotice}</p>
-            )}
+            ) : null}
             <div className="flex items-center justify-between gap-2 px-1">
               <span>
-                {station.hours_source === "osm"
+                {station.hours_source === "segnalazione"
+                  ? t.hoursFromReport
+                  : station.hours_source === "osm"
                   ? t.hoursFromOsm
                   : hasAnyHours
                     ? t.hoursFromHistory

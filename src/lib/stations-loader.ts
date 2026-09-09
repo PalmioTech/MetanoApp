@@ -25,7 +25,8 @@ type CsvRow = {
   prefestivi: string; // Saturday
   self?: string;      // "1" se il MIMIT registra un prezzo self-service
   telefono?: string;  // telefono dell'impianto (da OSM via arricchisci_telefoni.py)
-  fonte_orari?: string; // "osm" | "metanoauto" | "" (vedi scripts/applica_orari_osm.py)
+  fonte_orari?: string; // "osm" | "metanoauto" | "segnalazione" | ""
+  self_h24?: string;    // "1" se il self eroga anche fuori orario (data/orari_manuali.csv)
 };
 
 function parsePrice(raw: string | undefined | null): number | null {
@@ -124,10 +125,11 @@ function rowToStation(row: CsvRow, id: number): Station | null {
     opening_hours: hours,
     always_open,
     self_service: (row.self || "").trim() === "1",
+    self_h24: (row.self_h24 || "").trim() === "1",
     phone: (row.telefono || "").trim() || null,
     hours_source: (() => {
       const f = (row.fonte_orari || "").trim();
-      return f === "osm" || f === "metanoauto" ? f : null;
+      return f === "osm" || f === "metanoauto" || f === "segnalazione" ? f : null;
     })(),
     operator: null,
     payment_methods: [],
