@@ -225,7 +225,10 @@ function candidatesAlongRoute(polyline: [number, number][], cumulative: number[]
       const a = polyline[Math.max(0, best.segIdx - span)];
       const b = polyline[Math.min(polyline.length - 1, best.segIdx + span + 1)];
       const dLat = b[0] - a[0];
-      const dLng = b[1] - a[1];
+      // Un grado di longitudine alle nostre latitudini vale ~0,7 gradi di
+      // latitudine: senza questa correzione un tratto NO-SE (es. A1 Bologna-Milano)
+      // rischia di sembrare "est-ovest" e di far passare la carreggiata opposta.
+      const dLng = (b[1] - a[1]) * Math.cos((a[0] * Math.PI) / 180);
       let localDir: "north" | "south" | "ew" = "ew";
       // Consider it N/S if vertical movement is at least ~40% of horizontal
       if (Math.abs(dLat) >= Math.abs(dLng) * 0.4) {
