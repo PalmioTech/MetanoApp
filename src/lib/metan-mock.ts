@@ -342,8 +342,9 @@ function pickStops(
     if (ripiego) {
       const st = candidates[chosen].station;
       warnings.push(
-        `Con l'autonomia attuale nessun distributore del tipo scelto e' raggiungibile da ${Math.round(pos)} km: ` +
-        `sosta preliminare a ${st.name} (${st.city}), fuori dal filtro. Da li' il percorso prosegue con i distributori scelti.`,
+        `L'autonomia non basta per arrivare al prossimo distributore del tipo scelto: ` +
+        `fermati prima a ${st.name} (${st.city}), fuori dal filtro, a ${Math.round(candidates[chosen].cumKm)} km dalla partenza. ` +
+        `Da li' il percorso prosegue con i distributori scelti.`,
       );
       candidates[chosen] = { ...candidates[chosen], offFilter: true };
     }
@@ -542,10 +543,17 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const stationFilter = req.station_filter ?? "all";
   // Filtro scelto dall'utente: e' una PREFERENZA per il planner (con ripiego
   // se nessun preferito e' raggiungibile) e un filtro secco per la mappa.
+  // "Solo autostrada" = aree di servizio SULLA carreggiata che stai percorrendo:
+  // niente deviazioni. Un'area di servizio sta a poche centinaia di metri
+  // dall'asse stradale; oltre 1 km e' su un'altra autostrada (es. Campogalliano
+  // sulla A22 quando il percorso e' sulla A1) e va scartata.
+  const MAX_DETOUR_HIGHWAY_KM = 1.0;
   const matchesFilter = (c: Candidate) =>
     stationFilter === "all" ||
     (req.forced_station_ids ?? []).includes(c.station.id) ||
-    (stationFilter === "highway" ? isHighwayStation(c.station) : !isHighwayStation(c.station));
+    (stationFilter === "highway"
+      ? isHighwayStation(c.station) && c.detourKm <= MAX_DETOUR_HIGHWAY_KM
+      : !isHighwayStation(c.station));
   const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter((c) => {
     if (excludedSet.has(c.station.id)) return false;
     // Always allow forced stations regardless of direction or filter
