@@ -2,11 +2,12 @@ name: Update distributori CSV
 
 on:
   schedule:
-    # Due passaggi al giorno (orari UTC): se quello delle 5 fallisce per un
-    # inciampo del server MIMIT, quello delle 11 recupera. Se il primo è
-    # riuscito, il secondo non trova differenze e non committa nulla.
+    # Tre passaggi al giorno (orari UTC): se uno fallisce per un inciampo del
+    # server MIMIT (capita: timeout in connessione), il successivo recupera.
+    # Se il primo è riuscito, gli altri non trovano differenze e non committano.
     - cron: "0 5 * * *"
     - cron: "0 11 * * *"
+    - cron: "0 16 * * *"
   workflow_dispatch:
 
 permissions:

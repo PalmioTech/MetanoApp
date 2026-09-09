@@ -55,9 +55,14 @@ OUTPUT_HEADER = [
 ]
 
 
-def scarica(url: str, tentativi: int = 3, attesa: float = 10.0,
+def scarica(url: str, tentativi: int = 5, attesa: float = 20.0,
             insecure: bool = False) -> str:
-    """Scarica un URL come testo, con tentativi ripetuti e backoff."""
+    """Scarica un URL come testo, con tentativi ripetuti e backoff.
+
+    Il server MIMIT ogni tanto non risponde per qualche minuto (timeout in
+    connessione): 5 tentativi con attese 20/40/60/80 s coprono ~3 minuti di
+    indisponibilita' prima di arrendersi e lasciare il CSV del giorno prima.
+    """
     contesto = ssl._create_unverified_context() if insecure else None
     ultimo_errore: Exception | None = None
     for i in range(1, tentativi + 1):
@@ -73,7 +78,7 @@ def scarica(url: str, tentativi: int = 3, attesa: float = 10.0,
             ultimo_errore = e
             print(f"[tentativo {i}/{tentativi}] {url}: {e}", file=sys.stderr)
             if i < tentativi:
-                time.sleep(attesa * i)  # 10s, 20s, ...
+                time.sleep(attesa * i)  # 20s, 40s, 60s, 80s
     raise RuntimeError(f"download fallito dopo {tentativi} tentativi: {url}") from ultimo_errore
 
 
