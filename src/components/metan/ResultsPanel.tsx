@@ -13,6 +13,7 @@ const resultsCopy = {
     closed: "Chiuso",
     unknownHours: "Orario sconosciuto",
     stop: "Tappa",
+    offFilter: "Fuori filtro",
     fromStart: "dalla partenza",
     fromPrev: "dalla sosta precedente",
     sameDetour: "stessa deviazione",
@@ -41,6 +42,7 @@ const resultsCopy = {
     closed: "Closed",
     unknownHours: "Hours unknown",
     stop: "Stop",
+    offFilter: "Outside filter",
     fromStart: "from start",
     fromPrev: "from previous stop",
     sameDetour: "same detour",
@@ -193,6 +195,11 @@ function StopCard({
                 {isAdded && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
                     {t.stop}
+                  </span>
+                )}
+                {stop.off_filter && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-wide">
+                    {t.offFilter}
                   </span>
                 )}
               </div>

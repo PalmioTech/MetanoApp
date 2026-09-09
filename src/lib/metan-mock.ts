@@ -187,6 +187,7 @@ type Candidate = {
   cumKm: number;     // distance along route to closest projection
   detourKm: number;  // perpendicular distance to route
   localDir: "north" | "south" | "ew"; // local route direction at projection
+  offFilter?: boolean; // scelto in ripiego fuori dal filtro dell'utente (es. non in autostrada)
 };
 
 const MAX_DETOUR_KM = 8;
@@ -245,6 +246,7 @@ function pickStops(
   forcedIds: Set<number> = new Set(),
   startTime: Date = new Date(),
   durationMin: number = 0,
+  isPreferred?: (c: Candidate) => boolean,
 ): { picked: Candidate[]; warnings: string[] } {
   const usable = (range: number) => Math.max(0, range - safety);
   const picked: Candidate[] = [];
@@ -279,15 +281,28 @@ function pickStops(
 
     const upperLimitCum = nextForced ? Math.min(totalKm, nextForced.c.cumKm) : totalKm;
 
-    let bestIdx = -1;
-    let bestCum = -1;
-    for (let i = lastIdx + 1; i < candidates.length; i++) {
-      const c = candidates[i];
-      if (c.cumKm <= pos + 0.1) continue;
-      if (c.cumKm > upperLimitCum) break;
-      const reach = c.cumKm - pos;
-      if (reach > usable(range)) break;
-      if (c.cumKm > bestCum) { bestCum = c.cumKm; bestIdx = i; }
+    // Il candidato piu' lontano raggiungibile. Prima tra quelli che rispettano
+    // il filtro dell'utente (es. solo autostrada); se nessuno e' raggiungibile,
+    // ripiego su qualunque distributore: meglio una sosta "fuori filtro" che
+    // restare a secco prima della prima area di servizio.
+    const cercaPiuLontano = (soloPreferiti: boolean) => {
+      let idx = -1;
+      let cum = -1;
+      for (let i = lastIdx + 1; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (c.cumKm <= pos + 0.1) continue;
+        if (c.cumKm > upperLimitCum) break;
+        if (c.cumKm - pos > usable(range)) break;
+        if (soloPreferiti && isPreferred && !isPreferred(c)) continue;
+        if (c.cumKm > cum) { cum = c.cumKm; idx = i; }
+      }
+      return { idx, cum };
+    };
+    let { idx: bestIdx, cum: bestCum } = cercaPiuLontano(!!isPreferred);
+    let ripiego = false;
+    if (bestIdx === -1 && isPreferred) {
+      ({ idx: bestIdx, cum: bestCum } = cercaPiuLontano(false));
+      ripiego = bestIdx !== -1;
     }
 
     if (bestIdx === -1) {
@@ -308,6 +323,9 @@ function pickStops(
     for (let i = lastIdx + 1; i <= bestIdx; i++) {
       const c = candidates[i];
       if (c.cumKm < minCum) continue;
+      // Se stiamo scegliendo tra i preferiti, non considerare gli altri;
+      // se siamo in ripiego, vale qualunque candidato.
+      if (!ripiego && isPreferred && !isPreferred(c)) continue;
       const open = openAtForPlanning(c.station, etaAt(c.cumKm));
       const openRank = open === true ? 0 : open === null ? 1 : 2;
       const detour = c.detourKm;
@@ -317,6 +335,15 @@ function pickStops(
       }
     }
     if (chosen === -1) chosen = bestIdx;
+
+    if (ripiego) {
+      const st = candidates[chosen].station;
+      warnings.push(
+        `Con l'autonomia attuale nessun distributore del tipo scelto e' raggiungibile da ${Math.round(pos)} km: ` +
+        `sosta preliminare a ${st.name} (${st.city}), fuori dal filtro. Da li' il percorso prosegue con i distributori scelti.`,
+      );
+      candidates[chosen] = { ...candidates[chosen], offFilter: true };
+    }
 
     picked.push(candidates[chosen]);
     pos = candidates[chosen].cumKm;
@@ -510,13 +537,16 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   const excludedSet = new Set<number>(req.excluded_station_ids ?? []);
   const stationFilter = req.station_filter ?? "all";
+  // Filtro scelto dall'utente: e' una PREFERENZA per il planner (con ripiego
+  // se nessun preferito e' raggiungibile) e un filtro secco per la mappa.
+  const matchesFilter = (c: Candidate) =>
+    stationFilter === "all" ||
+    (req.forced_station_ids ?? []).includes(c.station.id) ||
+    (stationFilter === "highway" ? isHighwayStation(c.station) : !isHighwayStation(c.station));
   const candidatesAll = candidatesAlongRoute(polyline, cumulative).filter((c) => {
     if (excludedSet.has(c.station.id)) return false;
     // Always allow forced stations regardless of direction or filter
     if ((req.forced_station_ids ?? []).includes(c.station.id)) return true;
-    // Filtro autostrada scelto dall'utente nel form
-    if (stationFilter === "highway" && !isHighwayStation(c.station)) return false;
-    if (stationFilter === "no_highway" && isHighwayStation(c.station)) return false;
     const sd = highwayServesDirection(c.station);
     // If station's carriageway has a direction and the route is locally N/S,
     // exclude when the carriageway serves the opposite direction.
@@ -528,11 +558,12 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
 
   const startTime = req.depart_at ? new Date(req.depart_at) : new Date();
 
-  if (stationFilter !== "all" && candidatesAll.length === 0) {
+  const preferredCount = candidatesAll.filter(matchesFilter).length;
+  if (stationFilter !== "all" && preferredCount === 0) {
     warnings.push(
       stationFilter === "highway"
-        ? "Nessun distributore in autostrada lungo questo percorso: prova con «Tutti»."
-        : "Nessun distributore fuori autostrada lungo questo percorso: prova con «Tutti».",
+        ? "Nessun distributore in autostrada lungo questo percorso: le soste vengono scelte tra tutti i distributori."
+        : "Nessun distributore fuori autostrada lungo questo percorso: le soste vengono scelte tra tutti i distributori.",
     );
   }
 
@@ -545,6 +576,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
     forcedSet,
     startTime,
     durationMin,
+    stationFilter === "all" ? undefined : matchesFilter,
   );
   warnings.push(...pickWarnings);
 
@@ -587,6 +619,7 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
       km_from_prev: kmFromPrev,
       alternatives: alts,
       is_user_added: forcedSet.has(c.station.id),
+      off_filter: c.offFilter === true,
     };
   });
 
@@ -597,13 +630,11 @@ export async function mockPlan(req: PlanRequest): Promise<PlanResult> {
   const remaining = Math.max(0, Math.round(startingRange - kmAfterLast));
 
   if (missing.length) warnings.unshift(`Città non riconosciuta: ${missing.join(", ")}.`);
-  if (stationFilter !== "all" && candidatesAll.length > 0
-      && warnings.some((w) => w.startsWith("Nessun distributore raggiungibile"))) {
-    warnings.push(`Filtro attivo: ${candidatesAll.length} distributori considerati. Con «Tutti» le opzioni aumentano.`);
-  }
+
 
   const candidates: CandidateStation[] = candidatesAll
     .filter((c) => !pickedIds.has(c.station.id))
+    .filter(matchesFilter)
     .map((c) => ({ station: c.station, detour_km: c.detourKm, cum_km: c.cumKm }));
 
   return {

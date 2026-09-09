@@ -48,6 +48,8 @@ export type Stop = {
   km_from_prev: number; // km from origin (if first) or from previous stop
   alternatives: StopAlternative[];
   is_user_added?: boolean;
+  /** scelta in ripiego fuori dal filtro dell'utente (es. non in autostrada) */
+  off_filter?: boolean;
 };
 
 export type CandidateStation = {
@@ -84,8 +86,11 @@ export function isHighwayStation(s: Station): boolean {
   // solo nome si riconoscevano 7 impianti su ~1500; con l'indirizzo circa 90.
   const name = s.name.toLowerCase();
   const addr = (s.address ?? "").toLowerCase();
+  // Nel nome contano solo "autostrada"/"ADS": un "A14" nel nome puo' essere
+  // un impianto vicino allo svincolo ma fuori dall'autostrada (es. Interpetrol
+  // A14 Montemarciano, in via San Bernardo); la sigla fa fede solo nell'indirizzo.
   return (
-    /\b(a\d+|autostrad|ads)\b/.test(name) ||
+    /\b(autostrad|ads)\b/.test(name) ||
     /\bautostrad|\braccordo autostradale|\btangenziale\b|\ba\d{1,2}\b/.test(addr)
   );
 }
