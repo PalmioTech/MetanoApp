@@ -89,9 +89,14 @@ export function isHighwayStation(s: Station): boolean {
   // Nel nome contano solo "autostrada"/"ADS": un "A14" nel nome puo' essere
   // un impianto vicino allo svincolo ma fuori dall'autostrada (es. Interpetrol
   // A14 Montemarciano, in via San Bernardo); la sigla fa fede solo nell'indirizzo.
+  // Tangenziali e complanari NON sono autostrada: chi filtra "solo autostrada"
+  // vuole le aree di servizio, non un impianto sulla tangenziale di Parma.
+  if (/\bcomplanare\b/.test(addr)) return false;
+  // "ADS" nel nome (area di servizio) capita anche su statali e viali urbani
+  // (Pontedera, Cologne, Sansepolcro): non basta a dire autostrada.
   return (
-    /\b(autostrad|ads)\b/.test(name) ||
-    /\bautostrad|\braccordo autostradale|\btangenziale\b|\ba\d{1,2}\b/.test(addr)
+    /\bautostrad/.test(name) ||
+    /\bautostrad|\braccordo autostradale|\ba\d{1,2}\b/.test(addr)
   );
 }
 

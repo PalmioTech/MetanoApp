@@ -192,7 +192,11 @@ export function MapView({ result, highlightedStopNumber, externalHoveredStationI
   );
 
   const visibleStations = useMemo(() => {
-    if (result && result.candidates.length > 0) {
+    // Con un percorso calcolato si mostrano SOLO i candidati lungo la strada
+    // (gia' filtrati per autostrada/fuori). Anche se sono zero: prima, con la
+    // lista vuota, si ricadeva su tutti gli impianti in vista, e con "Solo
+    // autostrada" comparivano anche quelli fuori.
+    if (result) {
       return result.candidates
         .map((c) => c.station)
         .filter((s) => !highlightedAltIds.has(s.id));
