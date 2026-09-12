@@ -287,12 +287,16 @@ def main() -> int:
 
     righe.sort(key=lambda r: (r[3], r[4], r[2]))  # provincia, citta, nome
 
-    # Correzioni manuali (segnalazioni degli utenti): sovrascrivono orari/self.
+    # Correzioni manuali (segnalazioni degli utenti): sovrascrivono orari/self;
+    # impianti manuali: quelli che il MIMIT non elenca ancora.
     from orari_manuali import applica as applica_manuali
+    from impianti_manuali import applica as applica_impianti
     dict_righe = [dict(zip(OUTPUT_HEADER, r)) for r in righe]
     n_man = applica_manuali(dict_righe)
-    righe = [[d[c] for c in OUTPUT_HEADER] for d in dict_righe]
-    print(f"      correzioni manuali applicate: {n_man}", file=sys.stderr)
+    n_imp = applica_impianti(dict_righe)
+    dict_righe.sort(key=lambda d: (d["provincia"], d["citta"], d["Via estesa"]))
+    righe = [[d.get(c, "") for c in OUTPUT_HEADER] for d in dict_righe]
+    print(f"      correzioni manuali applicate: {n_man}; impianti manuali aggiunti: {n_imp}", file=sys.stderr)
 
     print(f"[4/4] scrivo {args.output}", file=sys.stderr)
     with open(args.output, "w", newline="", encoding="utf-8") as f:
